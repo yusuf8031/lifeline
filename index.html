@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lifeline — Fresno County Family Navigator</title>
+<style>
+  :root{color-scheme:light;
+    --bg:#f4f6fa;--card:#fff;--ink:#16202e;--muted:#5b6b80;--line:#e3e8f0;
+    --brand:#1f5fd0;--brand-dk:#16439a;--brand-soft:#e8f0ff;
+    --good:#1a8f5a;--good-soft:#e3f6ec;--warn:#b8740a;--warn-soft:#fdf1dd;--bad:#c0392b;--bad-soft:#fbe7e4;
+    --radius:16px;--shadow:0 1px 2px rgba(16,32,55,.06),0 6px 24px rgba(16,32,55,.06);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer}
+  a{color:var(--brand);text-decoration:none}a:hover{text-decoration:underline}
+  .hidden{display:none!important}
+  #auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,#16439a,#1f5fd0 55%,#3f86e6)}
+  .auth-card{background:var(--card);width:100%;max-width:440px;border-radius:22px;padding:34px 30px;box-shadow:0 24px 60px rgba(8,22,55,.35)}
+  .logo{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .logo .mark{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;color:#fff;font-weight:800}
+  .logo b{font-size:20px;letter-spacing:-.3px}
+  .auth-sub{color:var(--muted);font-size:14px;margin:2px 0 22px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#33455c}
+  .field input,.field select{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:11px;font-size:15px;background:#fbfcfe}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px var(--brand-soft)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;background:var(--brand);color:#fff;padding:12px 16px;border-radius:11px;font-weight:700;font-size:15px;width:100%}
+  .btn:hover{background:var(--brand-dk)}
+  .btn.sm{width:auto;padding:9px 14px;font-size:14px}
+  .btn.line{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.ghost{background:var(--brand-soft);color:var(--brand-dk)}
+  .switch{text-align:center;margin-top:16px;font-size:14px;color:var(--muted)}.switch a{font-weight:700;cursor:pointer}
+  .err{background:var(--bad-soft);color:var(--bad);padding:9px 12px;border-radius:9px;font-size:13px;margin-bottom:12px}
+  .legal-note{font-size:11.5px;color:var(--muted);margin-top:18px;text-align:center;line-height:1.45}
+  #app{max-width:1080px;margin:0 auto;padding:0 16px 60px}
+  header.top{position:sticky;top:0;z-index:20;background:rgba(244,246,250,.86);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .top .who{font-size:13px;color:var(--muted)}.top .who b{color:var(--ink)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+  .userbox{display:flex;align-items:center;gap:10px}
+  nav.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:8px;scrollbar-width:none}nav.tabs::-webkit-scrollbar{display:none}
+  .tab{white-space:nowrap;border:1px solid var(--line);background:#fff;color:var(--muted);padding:9px 14px;border-radius:999px;font-size:14px;font-weight:600}
+  .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .grid{display:grid;gap:16px}
+  @media(min-width:760px){.grid.two{grid-template-columns:1fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 4px;font-size:16px}.card .lead{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+  .sec-title{font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:26px 4px 12px}
+  .status{display:flex;flex-wrap:wrap;gap:14px}
+  .stat{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .stat .k{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .stat .v{font-size:20px;font-weight:800;margin-top:3px}.stat .v small{font-size:13px;font-weight:600;color:var(--muted)}
+  .pill{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px}
+  .pill.good{background:var(--good-soft);color:var(--good)}.pill.warn{background:var(--warn-soft);color:var(--warn)}
+  .pill.bad{background:var(--bad-soft);color:var(--bad)}.pill.info{background:var(--brand-soft);color:var(--brand-dk)}
+  .qa{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(min-width:620px){.qa{grid-template-columns:repeat(4,1fr)}}
+  .qa button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;font-weight:700;font-size:14px;color:var(--ink)}
+  .qa button:hover{border-color:var(--brand);background:var(--brand-soft)}.qa .ic{font-size:20px}
+  ul.clean{list-style:none;padding:0;margin:0}
+  ul.clean li{padding:11px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}ul.clean li:last-child{border-bottom:none}
+  .check{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);flex:0 0 auto;display:grid;place-items:center;cursor:pointer;font-size:13px;color:#fff;background:#fff;margin-top:1px}
+  .check.done{background:var(--good);border-color:var(--good)}
+  .li-body .t{font-weight:700;font-size:14.5px}.li-body .d{color:var(--muted);font-size:13px}
+  .li-body.done .t{text-decoration:line-through;color:var(--muted)}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px}.row:last-child{border-bottom:none}
+  .row .lbl{color:var(--muted)}.row .val{font-weight:700;text-align:right}
+  .vendor{display:flex;gap:14px;align-items:flex-start;padding:16px;border:1px solid var(--line);border-radius:14px;margin-bottom:12px}
+  .vendor .vic{width:44px;height:44px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;font-size:20px;font-weight:800;color:#fff}
+  .vendor h4{margin:0 0 2px;font-size:15px}.vendor p{margin:0 0 8px;font-size:13.5px;color:var(--muted)}
+  .vendor .meta{font-size:12.5px;color:var(--muted)}.vendor .meta b{color:var(--ink)}
+  .calc{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.calc .field{margin:0}
+  .calc .out{background:var(--good-soft);color:var(--good);font-weight:800;padding:12px 16px;border-radius:11px;font-size:18px}
+  .alert{display:flex;gap:12px;padding:14px 16px;border-radius:13px;font-size:13.5px;align-items:flex-start}
+  .alert.info{background:var(--brand-soft);color:var(--brand-dk)}.alert.warn{background:var(--warn-soft);color:#7a4d06}.alert.good{background:var(--good-soft);color:#0d5e39}.alert .ai{font-size:18px;line-height:1}
+  .reminder-toggle{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;font-size:14px;font-weight:600}
+  .toggle{width:46px;height:26px;border-radius:999px;background:var(--line);position:relative;flex:0 0 auto;transition:.15s}
+  .toggle::after{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .toggle.on{background:var(--good)}.toggle.on::after{left:23px}
+  .result{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+  .result:hover{border-color:var(--brand);background:var(--brand-soft)}
+  .result .nm{font-weight:700}.result .sub{font-size:12.5px;color:var(--muted)}
+  .footer-note{font-size:12px;color:var(--muted);text-align:center;margin-top:30px;line-height:1.5}
+  .extlink{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:13.5px}.extlink::after{content:"↗";font-size:11px}
+  .banner{background:#0d5e39;color:#d6f5e5;font-size:12.5px;text-align:center;padding:8px 14px;border-radius:10px;margin-bottom:16px}.banner b{color:#fff}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--brand-soft);border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-3px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth">
+  <div class="auth-card">
+    <div class="logo"><span class="mark">L</span><b>Lifeline</b></div>
+    <div class="auth-sub">Your guide when someone you love is in Fresno County Jail.</div>
+    <div id="errBox" class="err hidden"></div>
+    <form id="loginForm">
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@email.com" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn" type="submit">Log in</button>
+      <div class="switch">New here? <a id="toSignup">Create an account</a></div>
+    </form>
+    <form id="signupForm" class="hidden">
+      <div class="field"><label>Your name</label><input type="text" id="suName" placeholder="First name"></div>
+      <div class="field"><label>Email</label><input type="email" id="suEmail" placeholder="you@email.com" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input type="password" id="suPass" placeholder="Choose a password" autocomplete="new-password"></div>
+      <div class="field"><label>Relationship to the person inside</label>
+        <select id="suRel"><option>Parent</option><option>Spouse / Partner</option><option>Child</option><option>Sibling</option><option>Friend</option><option>Other family</option></select></div>
+      <button class="btn" type="submit">Create account</button>
+      <div class="switch">Already have an account? <a id="toLogin">Log in</a></div>
+    </form>
+    <div class="legal-note">Lifeline is independent and <b>not</b> affiliated with the Sheriff or courts. Live data is public information from the Fresno County Sheriff locator. Official actions link out to the real government and vendor sites.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="logo"><span class="mark">L</span><b>Lifeline</b></div>
+    <div class="userbox">
+      <div class="who" id="whoBox"></div>
+      <div class="avatar" id="avatar">?</div>
+      <button class="btn line sm" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+  <nav class="tabs hidden" id="tabs">
+    <button class="tab active" data-tab="home">Home</button>
+    <button class="tab" data-tab="money">Add Money</button>
+    <button class="tab" data-tab="court">Court &amp; Charges</button>
+    <button class="tab" data-tab="phone">Phone &amp; Mail</button>
+    <button class="tab" data-tab="visit">Visits</button>
+    <button class="tab" data-tab="bail">Bail</button>
+    <button class="tab" data-tab="alerts">Alerts</button>
+    <button class="tab" data-tab="help">Resources</button>
+    <button class="tab" data-tab="switch">Change person</button>
+  </nav>
+  <main id="views"></main>
+  <div class="footer-note">Lifeline (working name) — live data from the Fresno County Sheriff public locator. Always confirm details with the facility: (559) 475-9491.</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const DB={
+  users(){return JSON.parse(localStorage.getItem('ll_users')||'{}')},
+  save(u){localStorage.setItem('ll_users',JSON.stringify(u))},
+  session(){return localStorage.getItem('ll_session')},
+  setSession(e){e?localStorage.setItem('ll_session',e):localStorage.removeItem('ll_session')}
+};
+let CURRENT=null, PERSON=null;
+
+/* ---------- AUTH ---------- */
+const errBox=$('#errBox');
+const showErr=m=>{errBox.textContent=m;errBox.classList.remove('hidden')};
+const clrErr=()=>errBox.classList.add('hidden');
+$('#toSignup').onclick=()=>{$('#loginForm').classList.add('hidden');$('#signupForm').classList.remove('hidden');clrErr()};
+$('#toLogin').onclick=()=>{$('#signupForm').classList.add('hidden');$('#loginForm').classList.remove('hidden');clrErr()};
+$('#signupForm').onsubmit=e=>{e.preventDefault();clrErr();
+  const name=$('#suName').value.trim(),email=$('#suEmail').value.trim().toLowerCase(),pass=$('#suPass').value,rel=$('#suRel').value;
+  if(!name||!email||!pass)return showErr("Please fill in every field.");
+  const users=DB.users(); if(users[email])return showErr("That email already has an account. Try logging in.");
+  users[email]={name,pass,rel,checklist:{},person:null}; DB.save(users); DB.setSession(email); enterApp(email);
+};
+$('#loginForm').onsubmit=e=>{e.preventDefault();clrErr();
+  const email=$('#loginEmail').value.trim().toLowerCase(),pass=$('#loginPass').value,users=DB.users();
+  if(!users[email])return showErr("No account found. Create one first.");
+  if(users[email].pass!==pass)return showErr("Wrong password. Try again.");
+  DB.setSession(email); enterApp(email);
+};
+$('#logoutBtn').onclick=()=>{DB.setSession(null);location.reload()};
+
+function enterApp(email){
+  CURRENT=email; const u=DB.users()[email];
+  $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#avatar').textContent=(u.name[0]||'?').toUpperCase();
+  PERSON=u.person||null;
+  if(PERSON){ $('#tabs').classList.remove('hidden'); $('#whoBox').innerHTML='Supporting <b>'+esc(PERSON.name)+'</b>'; render('home'); }
+  else { $('#tabs').classList.add('hidden'); $('#whoBox').textContent=''; renderFind(); }
+}
+if(DB.session() && DB.users()[DB.session()]) enterApp(DB.session());
+
+/* ---------- helpers ---------- */
+const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money=n=>'$'+(Number(n)||0).toLocaleString();
+function saveUser(mut){const users=DB.users();mut(users[CURRENT]);DB.save(users);}
+
+/* ---------- FIND YOUR PERSON (real search) ---------- */
+function renderFind(){
+  $('#views').innerHTML=`
+  <div class="banner">🔎 <b>Live search</b> of the Fresno County Sheriff incarcerated-person locator.</div>
+  <div class="card">
+    <h3>Find your person</h3>
+    <p class="lead">Enter their name as it would appear on an ID. Last name is required. Unsure of spelling? Add * (e.g. <b>john*</b>).</p>
+    <div class="grid two">
+      <div class="field"><label>Last name (required)</label><input id="qLast" placeholder="Smith"></div>
+      <div class="field"><label>First name (optional)</label><input id="qFirst" placeholder="John"></div>
+    </div>
+    <button class="btn" id="doSearch">Search the jail locator</button>
+    <div style="margin-top:10px;font-size:12.5px;color:var(--muted)">Or, if you already know it, <a id="byBooking">enter a booking number</a>.</div>
+    <div id="searchOut" style="margin-top:16px"></div>
+  </div>`;
+  $('#qLast').addEventListener('keydown',e=>{if(e.key==='Enter')$('#doSearch').click()});
+  $('#doSearch').onclick=runSearch;
+  $('#byBooking').onclick=()=>{
+    $('#searchOut').innerHTML=`<div class="field"><label>Booking number</label><input id="bk" placeholder="2619672"></div><button class="btn sm" id="goBk">Load record</button>`;
+    $('#goBk').onclick=()=>pickPerson($('#bk').value.trim());
+  };
+}
+async function runSearch(){
+  const last=$('#qLast').value.trim(), first=$('#qFirst').value.trim();
+  if(!last)return showOut('<div class="alert warn"><span class="ai">⚠️</span><span>Please enter a last name.</span></div>');
+  showOut('<div style="padding:8px"><span class="spin"></span> Searching the Sheriff locator…</div>');
+  try{
+    const r=await fetch('/api/search?last='+encodeURIComponent(last)+'&first='+encodeURIComponent(first));
+    const d=await r.json();
+    if(d.error)return showOut('<div class="alert warn"><span class="ai">⚠️</span><span>'+esc(d.error)+'</span></div>');
+    if(!d.results||!d.results.length)return showOut('<div class="alert info"><span class="ai">ℹ️</span><span>No one by that name is currently in custody. Double-check spelling, try just the last name, or call (559) 475-9491.</span></div>');
+    showOut('<div class="lead" style="margin:0 0 10px">'+d.count+' result'+(d.count>1?'s':'')+' — tap the right person:</div>'+
+      d.results.map(p=>`<div class="result" data-bk="${esc(p.bookingNo)}">
+        <div><div class="nm">${esc(p.name)}</div><div class="sub">DOB ${esc(p.dob)} · ${esc(p.sex)} · ${esc(p.race)} · Booking #${esc(p.bookingNo)}</div></div>
+        <button class="btn sm">Select</button></div>`).join(''));
+    document.querySelectorAll('.result').forEach(el=>el.onclick=()=>pickPerson(el.dataset.bk));
+  }catch(e){ showOut('<div class="alert warn"><span class="ai">⚠️</span><span>Couldn\'t reach the locator. Make sure the app server is running, then try again.</span></div>'); }
+}
+const showOut=h=>{const o=$('#searchOut'); if(o)o.innerHTML=h;};
+async function pickPerson(booking){
+  if(!booking)return;
+  showOut('<div style="padding:8px"><span class="spin"></span> Loading the full record…</div>');
+  try{
+    const r=await fetch('/api/inmate?booking='+encodeURIComponent(booking));
+    const d=await r.json();
+    if(!d.found)return showOut('<div class="alert warn"><span class="ai">⚠️</span><span>That record couldn\'t be loaded. They may have been released. Call (559) 475-9491 to confirm.</span></div>');
+    saveUser(u=>{u.person=d; u.courtDate=u.courtDate||''; });
+    PERSON=d; $('#tabs').classList.remove('hidden'); $('#whoBox').innerHTML='Supporting <b>'+esc(d.name)+'</b>';
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='home'));
+    render('home');
+  }catch(e){ showOut('<div class="alert warn"><span class="ai">⚠️</span><span>Couldn\'t load the record. Is the server running?</span></div>'); }
+}
+
+/* ---------- checklist ---------- */
+const CHECKLIST=[
+  {id:'locate',t:'Confirm where they are',d:'Done — their record is loaded below.'},
+  {id:'court',t:'Find the first court date',d:'Look up the case number on the court portal and save it here.'},
+  {id:'money',t:'Put money on their books',d:'TouchPay — commissary (food, hygiene, stamps).'},
+  {id:'phone',t:'Set up phone calls',d:'Create a ConnectNetwork (GTL/ViaPath) prepaid account.'},
+  {id:'visit',t:'Plan a visit',d:'GettingOut for video, or learn the in-person walk-in hours.'},
+  {id:'pd',t:'Make sure they have a lawyer',d:'Public Defender is requested at arraignment if they can\'t afford one.'},
+];
+
+/* ---------- TABS ---------- */
+$('#tabs').addEventListener('click',e=>{
+  const b=e.target.closest('.tab'); if(!b)return;
+  if(b.dataset.tab==='switch'){ $('#tabs').classList.add('hidden'); renderFind(); return; }
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); b.classList.add('active');
+  render(b.dataset.tab);
+});
+function render(tab){
+  $('#views').innerHTML=({home:vHome,money:vMoney,court:vCourt,phone:vPhone,visit:vVisit,bail:vBail,alerts:vAlerts,help:vHelp}[tab]||vHome)();
+  wire(tab);
+}
+
+/* ---------- VIEWS (use real PERSON) ---------- */
+function vHome(){
+  const u=DB.users()[CURRENT],cl=u.checklist||{},done=CHECKLIST.filter(i=>cl[i.id]).length;
+  const totalBail=PERSON.totalBail||0;
+  const cd=u.courtDate;
+  return `
+  <div class="banner">✅ <b>Live record</b> pulled from the Fresno County Sheriff locator. Re-open "Change person" anytime to refresh.</div>
+  <div class="status">
+    <div class="stat"><div class="k">Status</div><div class="v">In custody <span class="pill good">verified</span></div></div>
+    <div class="stat"><div class="k">Housing</div><div class="v" style="font-size:16px">${esc(PERSON.housing||'—')}</div></div>
+    <div class="stat"><div class="k">Booking date</div><div class="v" style="font-size:16px">${esc(PERSON.bookDate||'—')}</div></div>
+    <div class="stat"><div class="k">Total bail</div><div class="v">${totalBail?money(totalBail):'—'}</div></div>
+  </div>
+  <div class="sec-title">What you can do right now</div>
+  <div class="qa">
+    <button data-go="money"><span class="ic">💵</span>Add money to books</button>
+    <button data-go="phone"><span class="ic">📞</span>Set up phone calls</button>
+    <button data-go="court"><span class="ic">⚖️</span>Court &amp; charges</button>
+    <button data-go="visit"><span class="ic">👋</span>Plan a visit</button>
+  </div>
+  <div class="grid two" style="margin-top:18px">
+    <div class="card">
+      <h3>Your first-week checklist</h3><p class="lead">${done} of ${CHECKLIST.length} done — tap to check off.</p>
+      <ul class="clean">${CHECKLIST.map(i=>`<li><div class="check ${cl[i.id]?'done':''}" data-check="${i.id}">${cl[i.id]?'✓':''}</div>
+        <div class="li-body ${cl[i.id]?'done':''}"><div class="t">${i.t}</div><div class="d">${i.d}</div></div></li>`).join('')}</ul>
+    </div>
+    <div class="card">
+      <h3>Their details</h3><p class="lead">You'll need these for almost everything — we copy them into each form for you.</p>
+      <div class="row"><span class="lbl">Name</span><span class="val">${esc(PERSON.name)}</span></div>
+      <div class="row"><span class="lbl">Booking #</span><span class="val">${esc(PERSON.bookingNo)}</span></div>
+      <div class="row"><span class="lbl">Person ID (JID)</span><span class="val">${esc(PERSON.personId||'—')}</span></div>
+      <div class="row"><span class="lbl">Facility #</span><span class="val">293721</span></div>
+      <div class="row"><span class="lbl">Arresting agency</span><span class="val">${esc(PERSON.agency||'—')}</span></div>
+      ${cd?`<div class="row"><span class="lbl">Next court date</span><span class="val">${esc(cd)}</span></div>`:''}
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Custody alerts <span class="pill info">auto</span></h3>
+    <p class="lead">Get notified if ${esc(PERSON.name)} is moved, released, or their charges/bail change — so you never make a wasted trip or miss a release.</p>
+    <div id="watchBox"></div>
+  </div>`;
+}
+function vMoney(){
+  return `
+  <div class="alert warn" style="margin-bottom:16px"><span class="ai">⚠️</span><span><b>The #1 mistake:</b> "the books" is not one account. Commissary, phone calls and tablet money go to three different companies. We pre-fill ${esc(PERSON.name)}'s numbers so you send to the right place.</span></div>
+  <div class="card">
+    <h3>Where should my money go?</h3><p class="lead">Pick what you want them to be able to do.</p>
+    <div class="vendor"><div class="vic" style="background:#1a8f5a">🛒</div><div>
+      <h4>Commissary &amp; "the books" → TouchPay</h4><p>Food, snacks, hygiene, stamps, OTC meds. Up to <b>$175/week</b>.</p>
+      <div class="meta"><b>Facility #:</b> 293721 · <b>Booking #:</b> ${esc(PERSON.bookingNo)} · cash/Visa/Mastercard · convenience fee applies</div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="https://www.touchpaydirect.com" target="_blank" rel="noopener">Deposit on TouchPay</a><span class="btn sm line">☎ 1-866-232-1899</span></div>
+    </div></div>
+    <div class="vendor"><div class="vic" style="background:#1f5fd0">📞</div><div>
+      <h4>Phone calls → ConnectNetwork (GTL / ViaPath)</h4><p>A <b>prepaid AdvancePay</b> account so they can call your number.</p>
+      <div class="meta">Provider since 2021 · info line (559) 475-9491</div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="https://web.connectnetwork.com/" target="_blank" rel="noopener">Fund calls on ConnectNetwork</a><span class="btn sm line">☎ 1-800-483-8314</span></div>
+    </div></div>
+    <div class="vendor"><div class="vic" style="background:#7a4dd1">📱</div><div>
+      <h4>Tablet entertainment → GettingOut</h4><p>Music, games, media on facility tablets (same GTL account).</p>
+      <div style="margin-top:10px"><a class="btn sm" href="https://www.gettingout.com/" target="_blank" rel="noopener">Add tablet funds</a></div>
+    </div></div>
+    <div class="vendor"><div class="vic" style="background:#b8740a">📦</div><div>
+      <h4>Care packages → MyCarePack / Canteen of Fresno</h4><p>Send approved packaged goods. Canteen: (559) 485-8800.</p>
+      <div style="margin-top:10px"><a class="btn sm" href="https://www.mycarepack.com/" target="_blank" rel="noopener">Send a care package</a></div>
+    </div></div>
+    <div class="alert good"><span class="ai">🎯</span><span><b>The Lifeline vision:</b> one wallet — load once, choose calls/commissary/tablet, see every fee before you pay.</span></div>
+  </div>`;
+}
+function vCourt(){
+  const u=DB.users()[CURRENT], cd=u.courtDate||'';
+  const charges=PERSON.charges||[];
+  return `
+  <div class="card">
+    <h3>Charges &amp; case numbers</h3>
+    <p class="lead">Pulled live from the booking record. Each <b>case number</b> is your key to the court portal.</p>
+    ${charges.length? `<ul class="clean">${charges.map(c=>`<li><div class="check done">§</div><div class="li-body">
+      <div class="t">${esc(c.code)} — ${esc(c.description)} ${c.level?`<span class="pill ${/felony/i.test(c.level)?'bad':'info'}">${esc(c.level)}</span>`:''}</div>
+      <div class="d">Bail: ${c.bail?'$'+esc(c.bail):'—'} · Case #${esc(c.caseNo||'—')} · ${esc(c.authority||'')}</div></div></li>`).join('')}</ul>`
+    : '<div class="alert info"><span class="ai">ℹ️</span><span>No charges listed on the booking record.</span></div>'}
+    <div style="margin-top:12px"><a class="btn sm" href="https://publicportal.fresno.courts.ca.gov/" target="_blank" rel="noopener">Open the court portal ↗</a></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Court date</h3>
+    <p class="lead">The jail record doesn't include the hearing date — look up the case number above on the court portal, then save the date here for reminders.</p>
+    <div class="field"><label>Next court date &amp; time</label><input type="datetime-local" id="cdIn" value="${cd?esc(cd):''}"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="saveCd">Save date</button><button class="btn sm line" id="calBtn">＋ Add to calendar</button></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Reminders</h3><p class="lead">Missing a date can mean a bench warrant.</p>
+    <div class="reminder-toggle">Remind me 7 days before <div class="toggle on" data-t></div></div>
+    <div class="reminder-toggle">Remind me the morning of <div class="toggle on" data-t></div></div>
+    <div class="alert info" style="margin-top:8px"><span class="ai">📍</span><span>Criminal Division: 1100 Van Ness Ave, 4th Fl, Rm 401 · (559) 457-1801 · 8am–4pm.</span></div>
+  </div>`;
+}
+function vPhone(){return `
+  <div class="card"><h3>How calls work here</h3>
+    <ul class="clean">
+      <li><div class="check done">✓</div><div class="li-body"><div class="t">They call you — you can't call in</div><div class="d">Phones open ~8:00am–9:45pm.</div></div></li>
+      <li><div class="check done">✓</div><div class="li-body"><div class="t">3 free calls at booking</div><div class="d">CA Penal Code §851.5 — attorney, bail, family.</div></div></li>
+      <li><div class="check done">✓</div><div class="li-body"><div class="t">Set up prepaid so they can reach you</div><div class="d">Many cell carriers block collect calls; a ConnectNetwork prepaid account fixes that.</div></div></li>
+    </ul>
+    <div style="margin-top:12px"><a class="btn sm" href="https://web.connectnetwork.com/" target="_blank" rel="noopener">Set up prepaid calling ↗</a></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Send a voicemail</h3>
+    <p class="lead">$1.00 per 30-second message.</p>
+    <div class="alert info"><span class="ai">🎙️</span><span>Dial <b>(559) 400-7521</b>, PIN: <b>0</b> + their Person ID (<b>${esc(PERSON.personId||'JID')}</b>).</span></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Send physical mail</h3>
+    <div class="alert warn"><span class="ai">📮</span><span>Address mail with their <b>name, booking #(${esc(PERSON.bookingNo)}) and Person ID (${esc(PERSON.personId||'—')})</b> or it may be returned.</span></div>
+  </div>`;}
+function vVisit(){return `
+  <div class="grid two">
+    <div class="card"><h3>Video visit (from home)</h3><p class="lead">Through GettingOut — register a Friends &amp; Family account.</p>
+      <ul class="clean">
+        <li><div class="check done">1</div><div class="li-body"><div class="t">Create a GettingOut account</div></div></li>
+        <li><div class="check done">2</div><div class="li-body"><div class="t">Find Fresno County Main Jail &amp; your person</div></div></li>
+        <li><div class="check done">3</div><div class="li-body"><div class="t">Schedule &amp; fund the visit</div></div></li>
+      </ul>
+      <div style="margin-top:8px"><a class="btn sm" href="https://www.gettingout.com/" target="_blank" rel="noopener">Schedule on GettingOut ↗</a></div>
+    </div>
+    <div class="card"><h3>In-person visit</h3><p class="lead">No advance booking — sign up the day of.</p>
+      <div class="row"><span class="lbl">Daytime</span><span class="val">8:15am · last 3:00pm</span></div>
+      <div class="row"><span class="lbl">Evening</span><span class="val">7:00pm · last 9:00pm</span></div>
+      <div class="row"><span class="lbl">Where</span><span class="val">Main Jail Lobby, 1225 M St</span></div>
+      <div class="alert warn" style="margin-top:12px"><span class="ai">🪪</span><span>Bring valid government photo ID. Temporary/foreign licenses not accepted.</span></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Don't make a wasted trip</h3>
+    <p class="lead" style="margin:0">Lockdowns and court transport can cancel a visit with no notice. Before you drive in, re-check ${esc(PERSON.name)}'s status under "Change person."</p></div>`;}
+function vBail(){
+  const total=PERSON.totalBail||0;
+  return `
+  <div class="card"><h3>Bail for ${esc(PERSON.name)}</h3>
+    <div class="status" style="margin-top:6px">
+      <div class="stat"><div class="k">Total bail</div><div class="v">${total?money(total):'—'}</div></div>
+      <div class="stat"><div class="k">Bond (≈10%)</div><div class="v">${total?money(total*0.1):'—'}<br><small>non-refundable</small></div></div>
+      <div class="stat"><div class="k">Cash bail</div><div class="v">${total?money(total):'—'}<br><small>refundable if they appear</small></div></div>
+    </div>
+    <p class="lead" style="margin-top:12px">Summed from the charges on the booking record. Confirm with the jail at (559) 475-9491.</p>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Your three options</h3>
+    <div class="vendor"><div class="vic" style="background:#1a8f5a">OR</div><div><h4>Own Recognizance (free)</h4><p>Judge releases low flight-risk people with community ties. Ask at arraignment.</p></div></div>
+    <div class="vendor"><div class="vic" style="background:#1f5fd0">%</div><div><h4>Bail bond (most common)</h4><p>~10% non-refundable; a co-signer is usually required and liable if the person misses court.</p></div></div>
+    <div class="vendor"><div class="vic" style="background:#b8740a">$</div><div><h4>Cash bail</h4><p>Full amount; refunded (minus admin fees) if every date is met. Release ~2–8 hours.</p></div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Bond cost calculator</h3>
+    <div class="calc">
+      <div class="field"><label>Bail amount ($)</label><input type="number" id="bailIn" value="${total||0}"></div>
+      <div class="field"><label>Premium %</label><input type="number" id="premIn" value="10" style="width:90px"></div>
+      <div class="out" id="bailOut">—</div>
+    </div>
+    <div class="alert info" style="margin-top:14px"><span class="ai">⚖️</span><span>Lifeline is not a bail bond company and takes no cut.</span></div>
+  </div>`;
+}
+function vAlerts(){return `
+  <div class="card">
+    <h3>Custody alerts for ${esc(PERSON.name)}</h3>
+    <p class="lead">Lifeline re-checks the jail record in the background and flags changes. Turn on browser notifications to be pinged even when you're on another tab.</p>
+    <div id="watchBox"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+      <button class="btn sm line" id="notifyBtn">🔔 Enable browser notifications</button>
+      <button class="btn sm line" id="checkNow">↻ Check now</button>
+    </div>
+    <div id="alertFeed"><div style="padding:8px"><span class="spin"></span> Loading alerts…</div></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Want texts or email too?</h3>
+    <p class="lead" style="margin:0">The app can send each alert to a free automation (Zapier / IFTTT / Make) that turns it into an SMS or email — no passwords needed. Set a <b>WEBHOOK_URL</b> when you deploy. Ask me to set this up.</p>
+  </div>`;}
+function vHelp(){return `
+  <div class="grid two">
+    <div class="card"><h3>Get a lawyer</h3><p class="lead">If they can't afford one, the court appoints a Public Defender at arraignment.</p>
+      <div class="row"><span class="lbl">Fresno Public Defender</span><span class="val">(559) 600-3546</span></div>
+      <div class="row"><span class="lbl">Office</span><span class="val">2135 Fresno St, Ste 100</span></div>
+      <div class="alert warn" style="margin-top:12px"><span class="ai">📝</span><span>Requires a financial declaration. Ask the judge at the <b>first appearance</b>.</span></div>
+    </div>
+    <div class="card"><h3>Key phone numbers</h3>
+      <div class="row"><span class="lbl">Is someone in custody?</span><span class="val">(559) 475-9491</span></div>
+      <div class="row"><span class="lbl">Jail Services</span><span class="val">(559) 600-8535</span></div>
+      <div class="row"><span class="lbl">Watch Commander (emergency)</span><span class="val">(559) 600-8440</span></div>
+      <div class="row"><span class="lbl">Inmate funds / refunds</span><span class="val">(559) 600-8572</span></div>
+      <div class="row"><span class="lbl">Criminal court clerk</span><span class="val">(559) 457-1801</span></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Support beyond the jail (Fresno)</h3>
+    <ul class="clean">
+      <li><div class="check done">♥</div><div class="li-body"><div class="t">Root &amp; Rebound</div><div class="d">Legal reentry: expungement, housing, employment, benefits.</div></div></li>
+      <li><div class="check done">♥</div><div class="li-body"><div class="t">Community Justice Center (Fresno)</div><div class="d">Reentry, reconciliation, youth mentoring.</div></div></li>
+      <li><div class="check done">♥</div><div class="li-body"><div class="t">Turning Point — Belgravia Center</div><div class="d">Transitional housing &amp; reentry.</div></div></li>
+      <li><div class="check done">♥</div><div class="li-body"><div class="t">NAMI Fresno</div><div class="d">Family support where mental health meets the justice system.</div></div></li>
+    </ul>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Official links</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <a class="extlink" href="https://www.fresnosheriff.org/units/records/inmate-search.html" target="_blank" rel="noopener">Incarcerated Person Search</a>
+      <a class="extlink" href="https://publicportal.fresno.courts.ca.gov/" target="_blank" rel="noopener">Fresno Superior Court Portal</a>
+      <a class="extlink" href="https://www.fresnosheriff.org/jail/money-property.html" target="_blank" rel="noopener">Money &amp; Property (Sheriff)</a>
+      <a class="extlink" href="https://www.vinelink.com" target="_blank" rel="noopener">VINE custody-status alerts</a>
+    </div>
+  </div>`;}
+
+/* ---------- ALERTS: watch box, feed, notifications ---------- */
+let WATCHING=false, lastAlertCount=0;
+async function refreshWatchBox(){
+  const box=document.querySelectorAll('#watchBox'); if(!box.length) return;
+  let data={watching:[],alerts:[],pollMinutes:30};
+  try{ data=await (await fetch('/api/alerts?booking='+encodeURIComponent(PERSON.bookingNo))).json(); }catch(e){}
+  WATCHING=(data.watching||[]).includes(PERSON.bookingNo);
+  const html = WATCHING
+    ? `<div class="alert good"><span class="ai">✅</span><span>Watching <b>${esc(PERSON.name)}</b> — checked about every ${data.pollMinutes} min. <a id="stopWatch" style="cursor:pointer;font-weight:700">Stop</a></span></div>`
+    : `<button class="btn sm" id="startWatch">🔔 Watch ${esc(PERSON.name)} for changes</button>`;
+  box.forEach(b=>b.innerHTML=html);
+  const sw=$('#startWatch'); if(sw)sw.onclick=async()=>{ sw.textContent='Setting up…'; await fetch('/api/watch?booking='+encodeURIComponent(PERSON.bookingNo)); refreshWatchBox(); };
+  const st=$('#stopWatch'); if(st)st.onclick=async()=>{ await fetch('/api/unwatch?booking='+encodeURIComponent(PERSON.bookingNo)); refreshWatchBox(); };
+}
+async function refreshFeed(){
+  const feed=$('#alertFeed'); if(!feed) return;
+  let data={alerts:[]};
+  try{ data=await (await fetch('/api/alerts?booking='+encodeURIComponent(PERSON.bookingNo))).json(); }catch(e){ feed.innerHTML='<div class="alert warn"><span class="ai">⚠️</span><span>Server not reachable.</span></div>'; return; }
+  if(!data.alerts.length){ feed.innerHTML='<div class="alert info"><span class="ai">🟢</span><span>No changes yet. You\'ll see any move, release, or charge/bail change here.</span></div>'; return; }
+  feed.innerHTML='<ul class="clean">'+data.alerts.map(a=>`<li><div class="check done">!</div><div class="li-body"><div class="t">${esc(a.message)}</div><div class="d">${new Date(a.at).toLocaleString()}</div></div></li>`).join('')+'</ul>';
+}
+// global poll for notifications (runs while app is open)
+async function notifyPoll(){
+  if(!PERSON) return;
+  try{
+    const d=await (await fetch('/api/alerts?booking='+encodeURIComponent(PERSON.bookingNo))).json();
+    if(d.alerts && d.alerts.length>lastAlertCount){
+      const newest=d.alerts[0];
+      if(lastAlertCount>0 && 'Notification' in window && Notification.permission==='granted'){
+        new Notification('Lifeline — '+PERSON.name, {body:newest.message});
+      }
+      lastAlertCount=d.alerts.length;
+      if($('#alertFeed')) refreshFeed();
+    } else if(lastAlertCount===0){ lastAlertCount=d.alerts?d.alerts.length:0; }
+  }catch(e){}
+}
+setInterval(notifyPoll, 120000); // every 2 min while open
+
+/* ---------- WIRE ---------- */
+function wire(){
+  if($('#watchBox')) refreshWatchBox();
+  if($('#alertFeed')) refreshFeed();
+  const nb=$('#notifyBtn'); if(nb)nb.onclick=async()=>{
+    if(!('Notification' in window))return alert('This browser doesn\'t support notifications.');
+    const p=await Notification.requestPermission();
+    nb.textContent = p==='granted' ? '🔔 Notifications on' : '🔕 Notifications blocked';
+  };
+  const cn=$('#checkNow'); if(cn)cn.onclick=async()=>{ cn.textContent='Checking…'; await fetch('/api/checknow'); await refreshFeed(); cn.textContent='↻ Check now'; };
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
+    const t=b.dataset.go; document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); render(t);
+  });
+  document.querySelectorAll('[data-check]').forEach(c=>c.onclick=()=>{
+    saveUser(u=>{u.checklist=u.checklist||{};u.checklist[c.dataset.check]=!u.checklist[c.dataset.check];}); render('home');
+  });
+  document.querySelectorAll('[data-t]').forEach(t=>t.onclick=()=>t.classList.toggle('on'));
+  const bi=$('#bailIn'),pi=$('#premIn'),bo=$('#bailOut');
+  if(bi){const calc=()=>bo.textContent='$'+(((+bi.value||0)*((+pi.value||0)/100))).toLocaleString();bi.oninput=calc;pi.oninput=calc;calc();}
+  const sc=$('#saveCd');
+  if(sc)sc.onclick=()=>{saveUser(u=>u.courtDate=$('#cdIn').value);alert('Court date saved. You\'ll see it on your Home screen.');};
+  const cal=$('#calBtn');
+  if(cal)cal.onclick=()=>{
+    const u=DB.users()[CURRENT]; const val=$('#cdIn').value||u.courtDate; if(!val)return alert('Pick a date first.');
+    const d=new Date(val),z=n=>String(n).padStart(2,'0');
+    const dt=d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+'T'+z(d.getHours())+z(d.getMinutes())+'00';
+    const ics='BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:'+PERSON.name+' — Court date\nLOCATION:1100 Van Ness Ave, Fresno\nDTSTART:'+dt+'\nEND:VEVENT\nEND:VCALENDAR';
+    const a=document.createElement('a');a.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);a.download='court-date.ics';a.click();
+  };
+}
+</script>
+</body>
+</html>

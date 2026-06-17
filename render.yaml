@@ -1,0 +1,15 @@
+# Render Blueprint — deploys Lifeline as a free web service.
+# In Render: New + > Blueprint, point it at the repo containing this file.
+services:
+  - type: web
+    name: lifeline
+    runtime: node
+    plan: free
+    buildCommand: ""        # no build step needed (zero dependencies)
+    startCommand: node server.js
+    envVars:
+      - key: POLL_MINUTES
+        value: "30"
+      # Optional: paste a Zapier/IFTTT/Make webhook URL to get SMS/email alerts.
+      # - key: WEBHOOK_URL
+      #   value: https://hooks.zapier.com/....
