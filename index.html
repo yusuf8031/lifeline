@@ -185,16 +185,8 @@ function enterApp(email){
   if(PERSON){ $('#tabs').classList.remove('hidden'); $('#whoBox').innerHTML='Supporting <b>'+esc(PERSON.name)+'</b>'; render('home'); }
   else { $('#tabs').classList.add('hidden'); $('#whoBox').textContent=''; renderFind(); }
 }
-if(!REQUIRE_LOGIN){
-  // Guest mode: skip login, go straight into the dashboard.
-  const g='guest@lifeline.local'; const users=DB.users();
-  if(!users[g]){ users[g]={name:'Guest',pass:'',rel:'Friend',checklist:{},person:null}; DB.save(users); }
-  DB.setSession(g);
-  const lo=document.getElementById('logoutBtn'); if(lo) lo.style.display='none';
-  enterApp(g);
-} else if(DB.session() && DB.users()[DB.session()]){
-  enterApp(DB.session());
-}
+/* startup runs at the very end of this script (after all helpers/views
+   are defined) — see the bottom of the file. */
 
 /* ---------- helpers ---------- */
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -544,6 +536,18 @@ function wire(){
     const ics='BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:'+PERSON.name+' — Court date\nLOCATION:1100 Van Ness Ave, Fresno\nDTSTART:'+dt+'\nEND:VEVENT\nEND:VCALENDAR';
     const a=document.createElement('a');a.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);a.download='court-date.ics';a.click();
   };
+}
+
+/* ===== STARTUP (runs last, after every helper/view is defined) ===== */
+if(!REQUIRE_LOGIN){
+  // Guest mode: skip login, open straight into the dashboard.
+  const g='guest@lifeline.local'; const users=DB.users();
+  if(!users[g]){ users[g]={name:'Guest',pass:'',rel:'Friend',checklist:{},person:null}; DB.save(users); }
+  DB.setSession(g);
+  const lo=document.getElementById('logoutBtn'); if(lo) lo.style.display='none';
+  enterApp(g);
+} else if(DB.session() && DB.users()[DB.session()]){
+  enterApp(DB.session());
 }
 </script>
 </body>
