@@ -300,7 +300,11 @@ function vHome(){
       <div class="row"><span class="lbl">Booking #</span><span class="val">${esc(PERSON.bookingNo)}</span></div>
       <div class="row"><span class="lbl">Person ID (JID)</span><span class="val">${esc(PERSON.personId||'—')}</span></div>
       <div class="row"><span class="lbl">Facility #</span><span class="val">293721</span></div>
+      <div class="row"><span class="lbl">Arrested</span><span class="val">${esc(PERSON.arrestDate||'—')}${PERSON.arrestTime?' · '+esc(PERSON.arrestTime):''}</span></div>
+      <div class="row"><span class="lbl">Booked</span><span class="val">${esc(PERSON.bookDate||'—')}${PERSON.bookTime?' · '+esc(PERSON.bookTime):''}</span></div>
       <div class="row"><span class="lbl">Arresting agency</span><span class="val">${esc(PERSON.agency||'—')}</span></div>
+      <div class="row"><span class="lbl">Description</span><span class="val">${[PERSON.sex,PERSON.race,PERSON.age?PERSON.age+' yrs':''].filter(Boolean).map(esc).join(' · ')||'—'}</span></div>
+      ${PERSON.releaseDate?`<div class="row"><span class="lbl">Scheduled release</span><span class="val">${esc(PERSON.releaseDate)}</span></div>`:''}
       ${cd?`<div class="row"><span class="lbl">Next court date</span><span class="val">${esc(cd)}</span></div>`:''}
     </div>
   </div>
@@ -339,13 +343,30 @@ function vMoney(){
 function vCourt(){
   const u=DB.users()[CURRENT], cd=u.courtDate||'';
   const charges=PERSON.charges||[];
+  // build a timeline from the booking record
+  const cases=[...new Set(charges.map(c=>c.caseNo).filter(Boolean))];
+  const sentenced=charges.find(c=>c.sentenceDate && c.sentenceDate.trim());
+  const ev=[];
+  if(PERSON.arrestDate) ev.push({t:'Arrested', d:(esc(PERSON.arrestDate)+(PERSON.arrestTime?' · '+esc(PERSON.arrestTime):''))+(PERSON.agency?' · '+esc(PERSON.agency):''), on:true});
+  if(PERSON.bookDate) ev.push({t:'Booked into jail', d:esc(PERSON.bookDate)+(PERSON.bookTime?' · '+esc(PERSON.bookTime):'')+(PERSON.housing?' · Unit '+esc(PERSON.housing):''), on:true});
+  if(charges.length) ev.push({t:'Charges filed', d:charges.length+' charge'+(charges.length>1?'s':'')+(cases.length?' · Case '+cases.map(c=>'#'+esc(c)).join(', '):''), on:true});
+  if(sentenced) ev.push({t:'Sentenced', d:esc(sentenced.sentenceDate)+(sentenced.sentenceDays?' · '+esc(sentenced.sentenceDays)+' days':''), on:true});
+  if(cd) ev.push({t:'Next court date (saved by you)', d:new Date(cd).toLocaleString(), on:true});
+  if(PERSON.releaseDate) ev.push({t:'Scheduled release', d:esc(PERSON.releaseDate), on:false});
+  else ev.push({t:'In custody', d:'No scheduled release on record yet.', on:false});
   return `
   <div class="card">
+    <h3>Case timeline</h3>
+    <p class="lead">Built from the live booking record. Court hearings aren't public — use the case numbers below on the portal for those.</p>
+    <ul class="clean">${ev.map(e=>`<li><div class="check ${e.on?'done':''}" style="${e.on?'':'background:#fff;border-color:var(--line);color:var(--muted)'}">${e.on?'✓':'•'}</div>
+      <div class="li-body"><div class="t">${e.t}</div><div class="d">${e.d}</div></div></li>`).join('')}</ul>
+  </div>
+  <div class="card" style="margin-top:16px">
     <h3>Charges &amp; case numbers</h3>
     <p class="lead">Pulled live from the booking record. Each <b>case number</b> is your key to the court portal.</p>
     ${charges.length? `<ul class="clean">${charges.map(c=>`<li><div class="check done">§</div><div class="li-body">
       <div class="t">${esc(c.code)} — ${esc(c.description)} ${c.level?`<span class="pill ${/felony/i.test(c.level)?'bad':'info'}">${esc(c.level)}</span>`:''}</div>
-      <div class="d">Bail: ${c.bail?'$'+esc(c.bail):'—'} · Case #${esc(c.caseNo||'—')} · ${esc(c.authority||'')}</div></div></li>`).join('')}</ul>`
+      <div class="d">Bail: ${c.bail?'$'+esc(c.bail):'—'} · Case #${esc(c.caseNo||'—')} · ${esc(c.authority||'')}${c.sentenceDate?' · Sentenced '+esc(c.sentenceDate)+(c.sentenceDays?' ('+esc(c.sentenceDays)+'d)':''):''}${c.releaseDate?' · Release '+esc(c.releaseDate):''}</div></div></li>`).join('')}</ul>`
     : '<div class="alert info"><span class="ai">ℹ️</span><span>No charges listed on the booking record.</span></div>'}
     <div style="margin-top:12px"><a class="btn sm" href="https://publicportal.fresno.courts.ca.gov/" target="_blank" rel="noopener">Open the court portal ↗</a></div>
   </div>

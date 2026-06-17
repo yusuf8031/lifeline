@@ -70,14 +70,18 @@ function parseCharges(html){
   const headers = (rows[0].match(/<t[hd][\s\S]*?<\/t[hd]>/gi)||[]).map(c=>stripTags(c).toLowerCase());
   const col = kw => headers.findIndex(h => h.includes(kw));
   const ci = { code:col('charge'), desc:col('description'), bail:col('bail amount'),
-               auth:col('authority'), caseNo:col('case'), level:col('level'), court:col('court') };
+               auth:col('authority'), caseNo:col('case'), level:col('level'), court:col('court'),
+               bailout:col('bailout'), sentDate:col('sentence date'), sentDays:col('sentence days'),
+               release:col('release date') };
   const out = [];
   for(let i=1;i<rows.length;i++){
     const cells = (rows[i].match(/<t[hd][\s\S]*?<\/t[hd]>/gi)||[]).map(stripTags);
     if(!cells.length || cells.every(c=>!c)) continue;
     const at = k => ci[k] >= 0 ? (cells[ci[k]]||'') : '';
     const o = { code:at('code'), description:at('desc'), bail:at('bail'),
-                authority:at('auth'), caseNo:at('caseNo'), level:at('level'), court:at('court') };
+                authority:at('auth'), caseNo:at('caseNo'), level:at('level'), court:at('court'),
+                bailout:at('bailout'), sentenceDate:at('sentDate'), sentenceDays:at('sentDays'),
+                releaseDate:at('release') };
     if(o.code || o.description) out.push(o);
   }
   return out;
@@ -164,13 +168,17 @@ async function getInmate(booking){
     height:     spanText(h,'fvwGenInfo_lblHeight'),
     weight:     spanText(h,'fvwGenInfo_lblWeight'),
     arrestDate: spanText(h,'fvwArrest_lblArrestDate'),
+    arrestTime: spanText(h,'fvwArrest_lblArrestTime'),
     bookDate:   spanText(h,'fvwArrest_lblBookDate'),
+    bookTime:   spanText(h,'fvwArrest_lblBookTime'),
     agency:     spanText(h,'fvwArrest_lblAgency'),
     housing:    spanText(h,'fvwArrest_lblLocation'),
     charges: []
   };
   // charges from the grvwCharges GridView
   rec.charges = parseCharges(h);
+  // earliest scheduled release date across charges (if the county has set one)
+  rec.releaseDate = (rec.charges.map(c=>c.releaseDate).filter(d=>d && !/^\s*$/.test(d))[0]) || '';
 
   // total bail (sum of numeric bail amounts)
   rec.totalBail = rec.charges.reduce((s,c)=> s + (parseFloat((c.bail||'').replace(/[^0-9.]/g,''))||0), 0);
