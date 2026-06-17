@@ -96,8 +96,12 @@
   .mcard h4{margin:5px 0 0;font-size:15.5px;letter-spacing:-.2px}
   .mcard .mdesc{margin:0 0 13px;font-size:13.5px;color:var(--muted);flex:1}
   .mchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
-  .mchip{font-size:11.5px;background:#f1f5fb;border:1px solid var(--line);color:#3a4a60;padding:4px 9px;border-radius:8px}
+  .mchip{font-size:11.5px;background:#f1f5fb;border:1px solid var(--line);color:#3a4a60;padding:4px 9px;border-radius:8px;font-family:inherit}
   .mchip b{color:var(--ink)}
+  .mchip.copy{cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .mchip.copy:hover{background:#e6eefb;border-color:var(--brand);color:var(--brand-dk)}
+  .mchip.copy .ci{opacity:.45;font-size:11px}
+  .mchip.copied{background:var(--good-soft);border-color:#bfe6cf;color:var(--good)}
   .mact{display:flex;gap:8px;flex-wrap:wrap}
   .mbtn{flex:1;min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 14px;border-radius:11px;font-weight:700;font-size:14px;color:#fff!important;text-decoration:none}
   .mbtn:hover{filter:brightness(.93);text-decoration:none}
@@ -214,6 +218,9 @@ function enterApp(email){
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 const money=n=>'$'+(Number(n)||0).toLocaleString();
 function saveUser(mut){const users=DB.users();mut(users[CURRENT]);DB.save(users);}
+function flashCopied(btn){ if(!btn)return; const o=btn.dataset.label||btn.innerHTML; btn.dataset.label=o; btn.classList.add('copied'); btn.innerHTML='✓ Copied'; clearTimeout(btn._t); btn._t=setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML=o;},1100); }
+function copyText(val,btn){ try{ navigator.clipboard.writeText(val).then(()=>flashCopied(btn),()=>fallbackCopy(val,btn)); }catch(e){ fallbackCopy(val,btn); } }
+function fallbackCopy(val,btn){ const t=document.createElement('textarea'); t.value=val; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(t); flashCopied(btn); }
 
 /* ---------- plain-English charge translation ---------- */
 const CODE_BOOK={PC:'California Penal Code',HS:'Health & Safety Code',VC:'Vehicle Code',WI:'Welfare & Institutions Code',BP:'Business & Professions Code',FG:'Fish & Game Code',CV:'Civil Code'};
@@ -424,7 +431,7 @@ function vMoney(){
         <div><span class="mtag" style="background:${o.c}1f;color:${o.c}">${o.tag}</span><h4>${o.title}</h4></div>
       </div>
       <div class="mdesc">${o.desc}</div>
-      ${o.chips?`<div class="mchips">${o.chips.map(ch=>`<span class="mchip">${ch}</span>`).join('')}</div>`:''}
+      ${o.chips?`<div class="mchips">${o.chips.map(ch=> ch.copy!=null ? `<button class="mchip copy" data-copy="${esc(ch.copy)}">${ch.label} <span class="ci">⧉ copy</span></button>` : `<span class="mchip">${ch.label}</span>`).join('')}</div>`:''}
       <div class="mact">
         <a class="mbtn" style="background:${o.c}" href="${o.url}" target="_blank" rel="noopener">${o.cta} ↗</a>
         ${o.phone?`<span class="mphone">☎ ${o.phone}</span>`:''}
@@ -435,10 +442,10 @@ function vMoney(){
     <div class="mflow"><span class="step">🛒 Commissary</span><span class="step">📞 Calls</span><span class="step">📱 Tablet</span><span class="step">📦 Packages</span></div>
   </div></div>
   <div class="mgrid">
-    ${card({c:'#1a8f5a',c2:'#22b06e',icon:'🛒',tag:'Food & hygiene',title:'Commissary — TouchPay',desc:'Snacks, hygiene, stamps, and OTC meds. They can spend up to <b>$175/week</b>.',chips:[`Facility <b>293721</b>`,`Booking <b>${bk}</b>`,'Visa · MC · cash'],url:'https://www.tpgovtpay.com/',cta:'Deposit on TouchPay',phone:'1-866-232-1899'})}
-    ${card({c:'#1f5fd0',c2:'#3f86e6',icon:'📞',tag:'Phone calls',title:'Calls — ConnectNetwork',desc:'Set up a <b>prepaid AdvancePay</b> account so they can call your number — most cell plans block collect calls.',chips:['GTL / ViaPath','Prepaid AdvancePay'],url:'https://web.connectnetwork.com/',cta:'Fund calls',phone:'1-800-483-8314'})}
-    ${card({c:'#7a4dd1',c2:'#9a6ef0',icon:'📱',tag:'Tablet',title:'Tablet media — GettingOut',desc:'Music, games, and media on facility tablets. Uses the same GTL account as calls.',chips:['Same GTL login'],url:'https://www.gettingout.com/',cta:'Add tablet funds'})}
-    ${card({c:'#b8740a',c2:'#d99320',icon:'📦',tag:'Packages',title:'Care packages — MyCarePack',desc:'Send approved packaged goods through Canteen of Fresno.',chips:['Approved items only'],url:'https://www.mycarepack.com/',cta:'Send a package',phone:'(559) 485-8800'})}
+    ${card({c:'#1a8f5a',c2:'#22b06e',icon:'🛒',tag:'Food & hygiene',title:'Commissary — TouchPay',desc:'Snacks, hygiene, stamps, and OTC meds. They can spend up to <b>$175/week</b>.',chips:[{label:`Facility <b>293721</b>`,copy:'293721'},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'Visa · MC · cash'}],url:'https://www.tpgovtpay.com/',cta:'Deposit on TouchPay',phone:'1-866-232-1899'})}
+    ${card({c:'#1f5fd0',c2:'#3f86e6',icon:'📞',tag:'Phone calls',title:'Calls — ConnectNetwork',desc:'Set up a <b>prepaid AdvancePay</b> account so they can call your number — most cell plans block collect calls.',chips:[{label:`Name <b>${esc(PERSON.name)}</b>`,copy:PERSON.name},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'GTL / ViaPath'}],url:'https://web.connectnetwork.com/',cta:'Fund calls',phone:'1-800-483-8314'})}
+    ${card({c:'#7a4dd1',c2:'#9a6ef0',icon:'📱',tag:'Tablet',title:'Tablet media — GettingOut',desc:'Music, games, and media on facility tablets. Uses the same GTL account as calls.',chips:[{label:`Name <b>${esc(PERSON.name)}</b>`,copy:PERSON.name},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'Same GTL login'}],url:'https://www.gettingout.com/',cta:'Add tablet funds'})}
+    ${card({c:'#b8740a',c2:'#d99320',icon:'📦',tag:'Packages',title:'Care packages — MyCarePack',desc:'Send approved packaged goods through Canteen of Fresno.',chips:[{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:`Facility <b>293721</b>`,copy:'293721'},{label:'Approved items only'}],url:'https://www.mycarepack.com/',cta:'Send a package',phone:'(559) 485-8800'})}
   </div>
   <div class="alert good" style="margin-top:16px"><span class="ai">🎯</span><span><b>Coming soon — one wallet:</b> load money once, choose calls / commissary / tablet, and see every fee before you pay.</span></div>`;
 }
@@ -653,6 +660,7 @@ function wire(){
     saveUser(u=>{u.checklist=u.checklist||{};u.checklist[c.dataset.check]=!u.checklist[c.dataset.check];}); render('home');
   });
   document.querySelectorAll('[data-t]').forEach(t=>t.onclick=()=>t.classList.toggle('on'));
+  document.querySelectorAll('.mchip.copy').forEach(b=>b.onclick=()=>copyText(b.dataset.copy,b));
   const bi=$('#bailIn'),pi=$('#premIn'),bo=$('#bailOut');
   if(bi){const calc=()=>bo.textContent='$'+(((+bi.value||0)*((+pi.value||0)/100))).toLocaleString();bi.oninput=calc;pi.oninput=calc;calc();}
   const sc=$('#saveCd');
