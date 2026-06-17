@@ -197,7 +197,7 @@ if(!REQUIRE_LOGIN){
 }
 
 /* ---------- helpers ---------- */
-const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 const money=n=>'$'+(Number(n)||0).toLocaleString();
 function saveUser(mut){const users=DB.users();mut(users[CURRENT]);DB.save(users);}
 
