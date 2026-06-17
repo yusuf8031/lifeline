@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lifeline — Fresno County Family Navigator</title>
+<title>StayNear — Fresno County Family Navigator</title>
 <style>
   :root{color-scheme:light;
     --bg:#f4f6fa;--card:#fff;--ink:#16202e;--muted:#5b6b80;--line:#e3e8f0;
@@ -119,7 +119,7 @@
 <!-- AUTH -->
 <div id="auth">
   <div class="auth-card">
-    <div class="logo"><span class="mark">L</span><b>Lifeline</b></div>
+    <div class="logo"><span class="mark">S</span><b>StayNear</b></div>
     <div class="auth-sub">Your guide when someone you love is in Fresno County Jail.</div>
     <div id="errBox" class="err hidden"></div>
     <form id="loginForm">
@@ -137,14 +137,14 @@
       <button class="btn" type="submit">Create account</button>
       <div class="switch">Already have an account? <a id="toLogin">Log in</a></div>
     </form>
-    <div class="legal-note">Lifeline is independent and <b>not</b> affiliated with the Sheriff or courts. Live data is public information from the Fresno County Sheriff locator. Official actions link out to the real government and vendor sites.</div>
+    <div class="legal-note">StayNear is independent and <b>not</b> affiliated with the Sheriff or courts. Live data is public information from the Fresno County Sheriff locator. Official actions link out to the real government and vendor sites.</div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app" class="hidden">
   <header class="top">
-    <div class="logo"><span class="mark">L</span><b>Lifeline</b></div>
+    <div class="logo"><span class="mark">S</span><b>StayNear</b></div>
     <div class="userbox">
       <div class="who" id="whoBox"></div>
       <div class="avatar" id="avatar">?</div>
@@ -163,7 +163,7 @@
     <button class="tab" data-tab="switch">Change person</button>
   </nav>
   <main id="views"></main>
-  <div class="footer-note">Lifeline (working name) — live data from the Fresno County Sheriff public locator. Always confirm details with the facility: (559) 475-9491.</div>
+  <div class="footer-note">StayNear — live data from the Fresno County Sheriff public locator. Always confirm details with the facility: (559) 475-9491.</div>
 </div>
 
 <script>
@@ -204,7 +204,7 @@ $('#loginForm').onsubmit=e=>{e.preventDefault();clrErr();
 $('#logoutBtn').onclick=()=>{DB.setSession(null);location.reload()};
 
 function enterApp(email){
-  CURRENT=email; const u=DB.users()[email];
+  CURRENT=email; const u=DB.users()[email]; track('app_open');
   $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#avatar').textContent=(u.name[0]||'?').toUpperCase();
   PERSON=u.person||null;
@@ -222,6 +222,8 @@ function flashCopied(btn){ if(!btn)return; const o=btn.dataset.label||btn.innerH
 function copyText(val,btn){ flashCopied(btn); /* optimistic feedback */
   try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(val).catch(()=>fallbackCopy(val)); } else { fallbackCopy(val); } }catch(e){ fallbackCopy(val); } }
 function fallbackCopy(val){ const t=document.createElement('textarea'); t.value=val; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(t); }
+/* ---------- privacy-safe analytics (aggregate counts only, no personal data) ---------- */
+function track(e){ try{ fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({e}),keepalive:true}); }catch(_){ } }
 
 /* ---------- plain-English charge translation ---------- */
 const CODE_BOOK={PC:'California Penal Code',HS:'Health & Safety Code',VC:'Vehicle Code',WI:'Welfare & Institutions Code',BP:'Business & Professions Code',FG:'Fish & Game Code',CV:'Civil Code'};
@@ -328,6 +330,7 @@ async function runSearch(){
   if(!last)return showOut('<div class="alert warn"><span class="ai">⚠️</span><span>Please enter a last name.</span></div>');
   showOut('<div style="padding:8px"><span class="spin"></span> Searching the Sheriff locator…</div>');
   try{
+    track('search');
     const r=await fetch('/api/search?last='+encodeURIComponent(last)+'&first='+encodeURIComponent(first));
     const d=await r.json();
     if(d.error)return showOut('<div class="alert warn"><span class="ai">⚠️</span><span>'+esc(d.error)+'</span></div>');
@@ -347,6 +350,7 @@ async function pickPerson(booking){
     const r=await fetch('/api/inmate?booking='+encodeURIComponent(booking));
     const d=await r.json();
     if(!d.found)return showOut('<div class="alert warn"><span class="ai">⚠️</span><span>That record couldn\'t be loaded. They may have been released. Call (559) 475-9491 to confirm.</span></div>');
+    track('record_loaded');
     saveUser(u=>{u.person=d; u.courtDate=u.courtDate||''; });
     PERSON=d; $('#tabs').classList.remove('hidden'); $('#whoBox').innerHTML='Supporting <b>'+esc(d.name)+'</b>';
     document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='home'));
@@ -372,6 +376,7 @@ $('#tabs').addEventListener('click',e=>{
   render(b.dataset.tab);
 });
 function render(tab){
+  track('tab_'+tab);
   $('#views').innerHTML=({home:vHome,money:vMoney,court:vCourt,phone:vPhone,visit:vVisit,bail:vBail,alerts:vAlerts,help:vHelp}[tab]||vHome)();
   wire(tab);
 }
@@ -434,7 +439,7 @@ function vMoney(){
       <div class="mdesc">${o.desc}</div>
       ${o.chips?`<div class="mchips">${o.chips.map(ch=> ch.copy!=null ? `<button class="mchip copy" data-copy="${esc(ch.copy)}">${ch.label} <span class="ci">⧉ copy</span></button>` : `<span class="mchip">${ch.label}</span>`).join('')}</div>`:''}
       <div class="mact">
-        <a class="mbtn" style="background:${o.c}" href="${o.url}" target="_blank" rel="noopener">${o.cta} ↗</a>
+        <a class="mbtn" style="background:${o.c}" href="${o.url}" target="_blank" rel="noopener" data-track="${o.track}">${o.cta} ↗</a>
         ${o.phone?`<span class="mphone">☎ ${o.phone}</span>`:''}
       </div>
     </div>`;
@@ -443,10 +448,10 @@ function vMoney(){
     <div class="mflow"><span class="step">🛒 Commissary</span><span class="step">📞 Calls</span><span class="step">📱 Tablet</span><span class="step">📦 Packages</span></div>
   </div></div>
   <div class="mgrid">
-    ${card({c:'#1a8f5a',c2:'#22b06e',icon:'🛒',tag:'Food & hygiene',title:'Commissary — TouchPay',desc:'Snacks, hygiene, stamps, and OTC meds. They can spend up to <b>$175/week</b>.',chips:[{label:`Facility <b>293721</b>`,copy:'293721'},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'Visa · MC · cash'}],url:'https://www.tpgovtpay.com/',cta:'Deposit on TouchPay',phone:'1-866-232-1899'})}
-    ${card({c:'#1f5fd0',c2:'#3f86e6',icon:'📞',tag:'Phone calls',title:'Calls — ConnectNetwork',desc:'Set up a <b>prepaid AdvancePay</b> account so they can call your number — most cell plans block collect calls.',chips:[{label:`Name <b>${esc(PERSON.name)}</b>`,copy:PERSON.name},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'GTL / ViaPath'}],url:'https://web.connectnetwork.com/',cta:'Fund calls',phone:'1-800-483-8314'})}
-    ${card({c:'#7a4dd1',c2:'#9a6ef0',icon:'📱',tag:'Tablet',title:'Tablet media — GettingOut',desc:'Music, games, and media on facility tablets. Uses the same GTL account as calls.',chips:[{label:`Name <b>${esc(PERSON.name)}</b>`,copy:PERSON.name},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'Same GTL login'}],url:'https://www.gettingout.com/',cta:'Add tablet funds'})}
-    ${card({c:'#b8740a',c2:'#d99320',icon:'📦',tag:'Packages',title:'Care packages — MyCarePack',desc:'Send approved packaged goods through Canteen of Fresno.',chips:[{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:`Facility <b>293721</b>`,copy:'293721'},{label:'Approved items only'}],url:'https://www.mycarepack.com/',cta:'Send a package',phone:'(559) 485-8800'})}
+    ${card({c:'#1a8f5a',c2:'#22b06e',icon:'🛒',tag:'Food & hygiene',title:'Commissary — TouchPay',desc:'Snacks, hygiene, stamps, and OTC meds. They can spend up to <b>$175/week</b>.',chips:[{label:`Facility <b>293721</b>`,copy:'293721'},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'Visa · MC · cash'}],url:'https://www.tpgovtpay.com/',cta:'Deposit on TouchPay',phone:'1-866-232-1899',track:'pay_touchpay'})}
+    ${card({c:'#1f5fd0',c2:'#3f86e6',icon:'📞',tag:'Phone calls',title:'Calls — ConnectNetwork',desc:'Set up a <b>prepaid AdvancePay</b> account so they can call your number — most cell plans block collect calls.',chips:[{label:`Name <b>${esc(PERSON.name)}</b>`,copy:PERSON.name},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'GTL / ViaPath'}],url:'https://web.connectnetwork.com/',cta:'Fund calls',phone:'1-800-483-8314',track:'pay_calls'})}
+    ${card({c:'#7a4dd1',c2:'#9a6ef0',icon:'📱',tag:'Tablet',title:'Tablet media — GettingOut',desc:'Music, games, and media on facility tablets. Uses the same GTL account as calls.',chips:[{label:`Name <b>${esc(PERSON.name)}</b>`,copy:PERSON.name},{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:'Same GTL login'}],url:'https://www.gettingout.com/',cta:'Add tablet funds',track:'pay_tablet'})}
+    ${card({c:'#b8740a',c2:'#d99320',icon:'📦',tag:'Packages',title:'Care packages — MyCarePack',desc:'Send approved packaged goods through Canteen of Fresno.',chips:[{label:`Booking <b>${bk}</b>`,copy:PERSON.bookingNo},{label:`Facility <b>293721</b>`,copy:'293721'},{label:'Approved items only'}],url:'https://www.mycarepack.com/',cta:'Send a package',phone:'(559) 485-8800',track:'pay_package'})}
   </div>
   <div class="alert good" style="margin-top:16px"><span class="ai">🎯</span><span><b>Coming soon — one wallet:</b> load money once, choose calls / commissary / tablet, and see every fee before you pay.</span></div>`;
 }
@@ -556,13 +561,13 @@ function vBail(){
       <div class="field"><label>Premium %</label><input type="number" id="premIn" value="10" style="width:90px"></div>
       <div class="out" id="bailOut">—</div>
     </div>
-    <div class="alert info" style="margin-top:14px"><span class="ai">⚖️</span><span>Lifeline is not a bail bond company and takes no cut.</span></div>
+    <div class="alert info" style="margin-top:14px"><span class="ai">⚖️</span><span>StayNear is not a bail bond company and takes no cut.</span></div>
   </div>`;
 }
 function vAlerts(){return `
   <div class="card">
     <h3>Custody alerts for ${esc(PERSON.name)}</h3>
-    <p class="lead">Lifeline re-checks the jail record in the background and flags changes. Turn on browser notifications to be pinged even when you're on another tab.</p>
+    <p class="lead">StayNear re-checks the jail record in the background and flags changes. Turn on browser notifications to be pinged even when you're on another tab.</p>
     <div id="watchBox"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
       <button class="btn sm line" id="notifyBtn">🔔 Enable browser notifications</button>
@@ -617,7 +622,7 @@ async function refreshWatchBox(){
     ? `<div class="alert good"><span class="ai">✅</span><span>Watching <b>${esc(PERSON.name)}</b> — checked about every ${data.pollMinutes} min. <a id="stopWatch" style="cursor:pointer;font-weight:700">Stop</a></span></div>`
     : `<button class="btn sm" id="startWatch">🔔 Watch ${esc(PERSON.name)} for changes</button>`;
   box.forEach(b=>b.innerHTML=html);
-  const sw=$('#startWatch'); if(sw)sw.onclick=async()=>{ sw.textContent='Setting up…'; await fetch('/api/watch?booking='+encodeURIComponent(PERSON.bookingNo)); refreshWatchBox(); };
+  const sw=$('#startWatch'); if(sw)sw.onclick=async()=>{ sw.textContent='Setting up…'; track('watch_started'); await fetch('/api/watch?booking='+encodeURIComponent(PERSON.bookingNo)); refreshWatchBox(); };
   const st=$('#stopWatch'); if(st)st.onclick=async()=>{ await fetch('/api/unwatch?booking='+encodeURIComponent(PERSON.bookingNo)); refreshWatchBox(); };
 }
 async function refreshFeed(){
@@ -635,7 +640,7 @@ async function notifyPoll(){
     if(d.alerts && d.alerts.length>lastAlertCount){
       const newest=d.alerts[0];
       if(lastAlertCount>0 && 'Notification' in window && Notification.permission==='granted'){
-        new Notification('Lifeline — '+PERSON.name, {body:newest.message});
+        new Notification('StayNear — '+PERSON.name, {body:newest.message});
       }
       lastAlertCount=d.alerts.length;
       if($('#alertFeed')) refreshFeed();
@@ -661,7 +666,8 @@ function wire(){
     saveUser(u=>{u.checklist=u.checklist||{};u.checklist[c.dataset.check]=!u.checklist[c.dataset.check];}); render('home');
   });
   document.querySelectorAll('[data-t]').forEach(t=>t.onclick=()=>t.classList.toggle('on'));
-  document.querySelectorAll('.mchip.copy').forEach(b=>b.onclick=()=>copyText(b.dataset.copy,b));
+  document.querySelectorAll('.mchip.copy').forEach(b=>b.onclick=()=>{copyText(b.dataset.copy,b);track('copy_used');});
+  document.querySelectorAll('[data-track]').forEach(b=>b.addEventListener('click',()=>track(b.dataset.track)));
   const bi=$('#bailIn'),pi=$('#premIn'),bo=$('#bailOut');
   if(bi){const calc=()=>bo.textContent='$'+(((+bi.value||0)*((+pi.value||0)/100))).toLocaleString();bi.oninput=calc;pi.oninput=calc;calc();}
   const sc=$('#saveCd');

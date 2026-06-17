@@ -244,6 +244,49 @@ async function pollOnce(){
   }
 }
 
+/* ============================================================
+   PRIVACY-SAFE ANALYTICS — aggregate counts only.
+   No IP addresses, no personal data, NO record of who is searched.
+   View the dashboard at  /stats?key=YOUR_KEY
+   ============================================================ */
+const STATS_FILE = path.join(__dirname, 'stats.json');
+const STATS_KEY = process.env.STATS_KEY || 'staynear2026';
+let STATS = { events:{}, daily:{}, since:new Date().toISOString() };
+function loadStats(){ try{ STATS = JSON.parse(fs.readFileSync(STATS_FILE,'utf8')); }catch(e){} }
+function saveStats(){ try{ fs.writeFileSync(STATS_FILE, JSON.stringify(STATS)); }catch(e){} }
+function bump(e){
+  if(typeof e!=='string' || !/^[a-z0-9_]{1,40}$/.test(e)) return;          // allowlist-shaped names only
+  STATS.events[e]=(STATS.events[e]||0)+1;
+  const d=new Date().toISOString().slice(0,10);
+  STATS.daily[d]=STATS.daily[d]||{};
+  STATS.daily[d][e]=(STATS.daily[d][e]||0)+1;
+  saveStats();
+}
+function readBody(req){ return new Promise(r=>{ let s=''; req.on('data',c=>{ s+=c; if(s.length>1000) req.destroy(); }); req.on('end',()=>r(s)); req.on('error',()=>r('')); }); }
+function statsHtml(){
+  const ev=STATS.events||{}; const n=k=>ev[k]||0;
+  const rows=(pre)=>Object.keys(ev).filter(k=>k.startsWith(pre)).sort((a,b)=>ev[b]-ev[a]).map(k=>`<tr><td>${k.slice(pre.length)}</td><td>${ev[k]}</td></tr>`).join('')||'<tr><td>—</td><td>0</td></tr>';
+  const days=Object.keys(STATS.daily||{}).sort().slice(-14);
+  const dayRows=days.map(d=>`<tr><td>${d}</td><td>${(STATS.daily[d].search)||0}</td><td>${(STATS.daily[d].app_open)||0}</td></tr>`).join('')||'<tr><td>—</td><td>0</td><td>0</td></tr>';
+  return `<!doctype html><html><head><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StayNear — Stats</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:#f4f6fa;color:#16202e;margin:0;padding:24px}.wrap{max-width:760px;margin:0 auto}h1{font-size:20px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:#5b6b80;margin-top:28px}.cards{display:flex;gap:12px;flex-wrap:wrap}.c{flex:1;min-width:130px;background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:16px}.c .k{font-size:11px;color:#5b6b80;text-transform:uppercase;font-weight:700}.c .v{font-size:26px;font-weight:800;margin-top:4px}table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e8f0;border-radius:12px;overflow:hidden;margin-top:8px}td,th{padding:9px 12px;border-bottom:1px solid #eef1f6;text-align:left;font-size:14px}tr:last-child td{border-bottom:none}th{background:#f8fafc;font-size:11px;text-transform:uppercase;color:#5b6b80}.muted{color:#8a97a8;font-size:12px;line-height:1.5}</style></head>
+<body><div class="wrap">
+<h1>📊 StayNear — usage stats</h1>
+<p class="muted">Aggregate, privacy-safe counts. No personal data, no IP addresses, and no record of who was searched. Tracking since ${new Date(STATS.since).toLocaleString()}.</p>
+<div class="cards">
+  <div class="c"><div class="k">Visits</div><div class="v">${n('app_open')}</div></div>
+  <div class="c"><div class="k">Searches</div><div class="v">${n('search')}</div></div>
+  <div class="c"><div class="k">Records opened</div><div class="v">${n('record_loaded')}</div></div>
+  <div class="c"><div class="k">Watches set</div><div class="v">${n('watch_started')}</div></div>
+  <div class="c"><div class="k">Copies used</div><div class="v">${n('copy_used')}</div></div>
+</div>
+<h2>Most-viewed tabs</h2><table><tr><th>Tab</th><th>Views</th></tr>${rows('tab_')}</table>
+<h2>Payment links clicked</h2><table><tr><th>Vendor</th><th>Clicks</th></tr>${rows('pay_')}</table>
+<h2>Last 14 days</h2><table><tr><th>Date</th><th>Searches</th><th>Visits</th></tr>${dayRows}</table>
+<p class="muted" style="margin-top:24px">Note: on the free hosting tier these counts reset when the app redeploys or restarts. Add a database for permanent history.</p>
+</div></body></html>`;
+}
+
 /* ---------- HTTP server ---------- */
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://localhost');
@@ -283,6 +326,20 @@ const server = http.createServer(async (req, res) => {
       await pollOnce();
       return json(res, 200, {ok:true});
     }
+    if(u.pathname === '/api/track' && req.method === 'POST'){   // privacy-safe event counter
+      const body = await readBody(req); let e;
+      try{ e = JSON.parse(body).e; }catch(_){}
+      bump(e);
+      return json(res, 200, {ok:true});
+    }
+    if(u.pathname === '/stats'){                 // private usage dashboard
+      if(u.searchParams.get('key') !== STATS_KEY){
+        res.writeHead(401, {'Content-Type':'text/plain'});
+        return res.end('Unauthorized. Add ?key=YOUR_KEY to the URL.');
+      }
+      res.writeHead(200, {'Content-Type':'text/html'});
+      return res.end(statsHtml());
+    }
     // static files
     let file = u.pathname === '/' ? '/index.html' : u.pathname;
     const fp = path.join(__dirname, path.normalize(file).replace(/^(\.\.[\/\\])+/,''));
@@ -306,6 +363,7 @@ function json(res, code, obj){
 
 if(require.main === module){
   loadStore();
+  loadStats();
   server.listen(PORT, ()=>{
     console.log('\n  Lifeline is running.');
     console.log('  Open this in your browser:  http://localhost:'+PORT);
