@@ -84,6 +84,28 @@
   .footer-note{font-size:12px;color:var(--muted);text-align:center;margin-top:30px;line-height:1.5}
   .extlink{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:13.5px}.extlink::after{content:"↗";font-size:11px}
   .banner{background:#0d5e39;color:#d6f5e5;font-size:12.5px;text-align:center;padding:8px 14px;border-radius:10px;margin-bottom:16px}.banner b{color:#fff}
+  /* ---- Add Money cards ---- */
+  .mgrid{display:grid;gap:14px}
+  @media(min-width:720px){.mgrid{grid-template-columns:1fr 1fr}}
+  .mcard{position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--shadow);overflow:hidden;transition:.15s;display:flex;flex-direction:column}
+  .mcard:hover{box-shadow:0 10px 30px rgba(16,32,55,.10);transform:translateY(-2px)}
+  .mcard .accent{position:absolute;top:0;left:0;right:0;height:5px}
+  .mhead{display:flex;gap:13px;align-items:center;margin-bottom:11px}
+  .mtile{width:48px;height:48px;border-radius:14px;flex:0 0 auto;display:grid;place-items:center;font-size:23px;box-shadow:0 5px 14px rgba(0,0,0,.14)}
+  .mtag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+  .mcard h4{margin:5px 0 0;font-size:15.5px;letter-spacing:-.2px}
+  .mcard .mdesc{margin:0 0 13px;font-size:13.5px;color:var(--muted);flex:1}
+  .mchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+  .mchip{font-size:11.5px;background:#f1f5fb;border:1px solid var(--line);color:#3a4a60;padding:4px 9px;border-radius:8px}
+  .mchip b{color:var(--ink)}
+  .mact{display:flex;gap:8px;flex-wrap:wrap}
+  .mbtn{flex:1;min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 14px;border-radius:11px;font-weight:700;font-size:14px;color:#fff!important;text-decoration:none}
+  .mbtn:hover{filter:brightness(.93);text-decoration:none}
+  .mphone{display:inline-flex;align-items:center;gap:6px;padding:12px 13px;border-radius:11px;border:1px solid var(--line);background:#fbfcfe;color:var(--ink);font-size:13px;font-weight:600;white-space:nowrap}
+  .mintro{display:flex;gap:12px;align-items:flex-start;background:var(--warn-soft);color:#7a4d06;border-radius:14px;padding:14px 16px;font-size:13.5px;margin-bottom:16px}
+  .mintro .ai{font-size:20px;line-height:1}
+  .mflow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:8px}
+  .mflow .step{font-size:11px;font-weight:700;background:#fff;border:1px solid #f0d9ad;color:#7a4d06;padding:3px 9px;border-radius:999px}
   .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--brand-soft);border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-3px}
   @keyframes s{to{transform:rotate(360deg)}}
 </style>
@@ -393,30 +415,32 @@ function vHome(){
   </div>`;
 }
 function vMoney(){
+  const bk=esc(PERSON.bookingNo);
+  const card=o=>`
+    <div class="mcard">
+      <div class="accent" style="background:${o.c}"></div>
+      <div class="mhead">
+        <div class="mtile" style="background:linear-gradient(135deg,${o.c},${o.c2})">${o.icon}</div>
+        <div><span class="mtag" style="background:${o.c}1f;color:${o.c}">${o.tag}</span><h4>${o.title}</h4></div>
+      </div>
+      <div class="mdesc">${o.desc}</div>
+      ${o.chips?`<div class="mchips">${o.chips.map(ch=>`<span class="mchip">${ch}</span>`).join('')}</div>`:''}
+      <div class="mact">
+        <a class="mbtn" style="background:${o.c}" href="${o.url}" target="_blank" rel="noopener">${o.cta} ↗</a>
+        ${o.phone?`<span class="mphone">☎ ${o.phone}</span>`:''}
+      </div>
+    </div>`;
   return `
-  <div class="alert warn" style="margin-bottom:16px"><span class="ai">⚠️</span><span><b>The #1 mistake:</b> "the books" is not one account. Commissary, phone calls and tablet money go to three different companies. We pre-fill ${esc(PERSON.name)}'s numbers so you send to the right place.</span></div>
-  <div class="card">
-    <h3>Where should my money go?</h3><p class="lead">Pick what you want them to be able to do.</p>
-    <div class="vendor"><div class="vic" style="background:#1a8f5a">🛒</div><div>
-      <h4>Commissary &amp; "the books" → TouchPay</h4><p>Food, snacks, hygiene, stamps, OTC meds. Up to <b>$175/week</b>.</p>
-      <div class="meta"><b>Facility #:</b> 293721 · <b>Booking #:</b> ${esc(PERSON.bookingNo)} · cash/Visa/Mastercard · convenience fee applies</div>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="https://www.tpgovtpay.com/" target="_blank" rel="noopener">Deposit on TouchPay</a><span class="btn sm line">☎ 1-866-232-1899</span></div>
-    </div></div>
-    <div class="vendor"><div class="vic" style="background:#1f5fd0">📞</div><div>
-      <h4>Phone calls → ConnectNetwork (GTL / ViaPath)</h4><p>A <b>prepaid AdvancePay</b> account so they can call your number.</p>
-      <div class="meta">Provider since 2021 · info line (559) 475-9491</div>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="https://web.connectnetwork.com/" target="_blank" rel="noopener">Fund calls on ConnectNetwork</a><span class="btn sm line">☎ 1-800-483-8314</span></div>
-    </div></div>
-    <div class="vendor"><div class="vic" style="background:#7a4dd1">📱</div><div>
-      <h4>Tablet entertainment → GettingOut</h4><p>Music, games, media on facility tablets (same GTL account).</p>
-      <div style="margin-top:10px"><a class="btn sm" href="https://www.gettingout.com/" target="_blank" rel="noopener">Add tablet funds</a></div>
-    </div></div>
-    <div class="vendor"><div class="vic" style="background:#b8740a">📦</div><div>
-      <h4>Care packages → MyCarePack / Canteen of Fresno</h4><p>Send approved packaged goods. Canteen: (559) 485-8800.</p>
-      <div style="margin-top:10px"><a class="btn sm" href="https://www.mycarepack.com/" target="_blank" rel="noopener">Send a care package</a></div>
-    </div></div>
-    <div class="alert good"><span class="ai">🎯</span><span><b>The Lifeline vision:</b> one wallet — load once, choose calls/commissary/tablet, see every fee before you pay.</span></div>
-  </div>`;
+  <div class="mintro"><span class="ai">⚠️</span><div><b>"The books" isn't one account.</b> Commissary, phone calls, and tablet money each go to a <b>different company</b> — the most common costly mistake. Pick the right one below; we've pre-filled ${esc(PERSON.name)}'s numbers.
+    <div class="mflow"><span class="step">🛒 Commissary</span><span class="step">📞 Calls</span><span class="step">📱 Tablet</span><span class="step">📦 Packages</span></div>
+  </div></div>
+  <div class="mgrid">
+    ${card({c:'#1a8f5a',c2:'#22b06e',icon:'🛒',tag:'Food & hygiene',title:'Commissary — TouchPay',desc:'Snacks, hygiene, stamps, and OTC meds. They can spend up to <b>$175/week</b>.',chips:[`Facility <b>293721</b>`,`Booking <b>${bk}</b>`,'Visa · MC · cash'],url:'https://www.tpgovtpay.com/',cta:'Deposit on TouchPay',phone:'1-866-232-1899'})}
+    ${card({c:'#1f5fd0',c2:'#3f86e6',icon:'📞',tag:'Phone calls',title:'Calls — ConnectNetwork',desc:'Set up a <b>prepaid AdvancePay</b> account so they can call your number — most cell plans block collect calls.',chips:['GTL / ViaPath','Prepaid AdvancePay'],url:'https://web.connectnetwork.com/',cta:'Fund calls',phone:'1-800-483-8314'})}
+    ${card({c:'#7a4dd1',c2:'#9a6ef0',icon:'📱',tag:'Tablet',title:'Tablet media — GettingOut',desc:'Music, games, and media on facility tablets. Uses the same GTL account as calls.',chips:['Same GTL login'],url:'https://www.gettingout.com/',cta:'Add tablet funds'})}
+    ${card({c:'#b8740a',c2:'#d99320',icon:'📦',tag:'Packages',title:'Care packages — MyCarePack',desc:'Send approved packaged goods through Canteen of Fresno.',chips:['Approved items only'],url:'https://www.mycarepack.com/',cta:'Send a package',phone:'(559) 485-8800'})}
+  </div>
+  <div class="alert good" style="margin-top:16px"><span class="ai">🎯</span><span><b>Coming soon — one wallet:</b> load money once, choose calls / commissary / tablet, and see every fee before you pay.</span></div>`;
 }
 function vCourt(){
   const u=DB.users()[CURRENT], cd=u.courtDate||'';
