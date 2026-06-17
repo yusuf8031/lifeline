@@ -193,6 +193,84 @@ function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const money=n=>'$'+(Number(n)||0).toLocaleString();
 function saveUser(mut){const users=DB.users();mut(users[CURRENT]);DB.save(users);}
 
+/* ---------- plain-English charge translation ---------- */
+const CODE_BOOK={PC:'California Penal Code',HS:'Health & Safety Code',VC:'Vehicle Code',WI:'Welfare & Institutions Code',BP:'Business & Professions Code',FG:'Fish & Game Code',CV:'Civil Code'};
+// keyed by normalized code prefix (longest match wins): [normPrefix, plain English, context]
+const CHARGE_DICT=[
+  ['PC2735','Domestic violence — willfully injuring a spouse, partner, or co-parent','Usually a felony; expect a no-contact / protective order'],
+  ['PC2736','Violating a domestic-violence protective/restraining order',''],
+  ['PC273A','Child endangerment','Often involves CPS as well'],
+  ['PC273D','Child abuse — corporal injury to a child',''],
+  ['PC243','Battery (unlawful touching/force on another person)',''],
+  ['PC242','Battery',''],
+  ['PC245','Assault with a deadly weapon or force likely to cause great injury','Serious felony ("ADW")'],
+  ['PC240','Assault',''],
+  ['PC211','Robbery — taking property by force or fear','Serious/violent felony'],
+  ['PC459','Burglary — entering a place intending to commit a crime',''],
+  ['PC487','Grand theft (property over the felony threshold)',''],
+  ['PC4845','Petty theft',''],
+  ['PC488','Petty theft',''],
+  ['PC496','Receiving or possessing stolen property',''],
+  ['PC422','Criminal threats',''],
+  ['PC69','Resisting an officer with threats/force','Felony resisting'],
+  ['PC148','Resisting, delaying, or obstructing an officer',''],
+  ['PC368','Elder abuse',''],
+  ['PC290','Sex-offender registration violation',''],
+  ['PC6469','Stalking',''],
+  ['PC182','Conspiracy (agreeing with others to commit a crime)',''],
+  ['PC664','Attempt to commit a crime',''],
+  ['PC594','Vandalism',''],
+  ['PC647F','Public intoxication',''],
+  ['PC647','Disorderly conduct',''],
+  ['PC415','Disturbing the peace / fighting',''],
+  ['PC32','Accessory (helping someone after a crime)',''],
+  ['PC12032','Probation violation','Bail is often denied on a violation hold'],
+  ['PC12022','Sentence enhancement (e.g., armed / great bodily injury)','Adds time to the underlying charge'],
+  ['PC3455','PRCS (post-release community supervision) violation','Usually a no-bail hold'],
+  ['PC3056','Parole violation','Usually a no-bail hold'],
+  ['PC3000','Parole violation','Usually a no-bail hold'],
+  ['PC8537','Failure to appear in court',''],
+  ['PC29800','Felon in possession of a firearm','Felony'],
+  ['PC25400','Carrying a concealed firearm',''],
+  ['PC417','Brandishing a weapon',''],
+  ['PC236','False imprisonment',''],
+  ['PC207','Kidnapping','Serious/violent felony'],
+  ['PC451','Arson','Serious felony'],
+  ['PC452','Unlawfully causing a fire',''],
+  ['PC187','Murder','Most serious — typically held without bail'],
+  ['HS11350','Possession of a controlled substance',''],
+  ['HS11351','Possession of a controlled substance for sale','Felony'],
+  ['HS11352','Sale/transportation of a controlled substance','Felony'],
+  ['HS11377','Possession of a controlled substance (e.g., methamphetamine)',''],
+  ['HS11378','Possession for sale (e.g., methamphetamine)','Felony'],
+  ['HS11379','Transportation/sale (e.g., methamphetamine)','Felony'],
+  ['HS11357','Marijuana possession',''],
+  ['HS11358','Marijuana cultivation',''],
+  ['VC23152','Driving under the influence (DUI)',''],
+  ['VC14601','Driving on a suspended/revoked license',''],
+  ['VC10851','Vehicle theft / unlawful driving of a vehicle',''],
+  ['VC2800','Evading or failing to yield to police',''],
+];
+function normCode(c){return (c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+// returns {plain, context, codeName} or null
+function chargePlain(code){
+  const n=normCode(code); if(!n) return null;
+  const pre=(n.match(/^[A-Z]+/)||[''])[0];
+  const codeName=CODE_BOOK[pre]||null;
+  let best=null;
+  for(const [k,plain,ctx] of CHARGE_DICT){ if(n.startsWith(k) && (!best||k.length>best[0].length)) best=[k,plain,ctx]; }
+  if(/WARR|FUGITIVE|BENCH/.test(n)) best=best||['',((/BENCH/.test(n))?'Bench warrant (issued for a missed court date)':'Outstanding warrant'),''];
+  return {plain:best?best[1]:null, context:best?best[2]:'', codeName};
+}
+// hold / no-bail detection for a charge
+function chargeHold(c){
+  const bailNum=parseFloat((c.bail||'').replace(/[^0-9.]/g,''));
+  const noBail=!c.bail || isNaN(bailNum) || bailNum===0 || /no\s*bail/i.test(c.bail);
+  const auth=(c.authority||'').toUpperCase();
+  const hold=/RMORD|REMAND|HOLD|PAROLE|PRCS|ICE|IMMIG|OTHER/.test(auth) || /3455|3056|3000|12032/.test(normCode(c.code));
+  return {noBail, hold, reason: hold?'Court/agency hold':(noBail?'No bail set':'')};
+}
+
 /* ---------- FIND YOUR PERSON (real search) ---------- */
 function renderFind(){
   $('#views').innerHTML=`
@@ -361,14 +439,17 @@ function vCourt(){
     <ul class="clean">${ev.map(e=>`<li><div class="check ${e.on?'done':''}" style="${e.on?'':'background:#fff;border-color:var(--line);color:var(--muted)'}">${e.on?'✓':'•'}</div>
       <div class="li-body"><div class="t">${e.t}</div><div class="d">${e.d}</div></div></li>`).join('')}</ul>
   </div>
+  ${charges.some(c=>{const h=chargeHold(c);return h.hold||h.noBail;})?`<div class="alert warn" style="margin-top:16px"><span class="ai">⚠️</span><span><b>Heads up:</b> one or more charges have <b>no bail set or a hold</b>. Posting bail on the other charges may <b>not</b> get them released. Confirm before paying a bondsman — call the jail at (559) 475-9491.</span></div>`:''}
   <div class="card" style="margin-top:16px">
     <h3>Charges &amp; case numbers</h3>
-    <p class="lead">Pulled live from the booking record. Each <b>case number</b> is your key to the court portal.</p>
-    ${charges.length? `<ul class="clean">${charges.map(c=>`<li><div class="check done">§</div><div class="li-body">
-      <div class="t">${esc(c.code)} — ${esc(c.description)} ${c.level?`<span class="pill ${/felony/i.test(c.level)?'bad':'info'}">${esc(c.level)}</span>`:''}</div>
-      <div class="d">Bail: ${c.bail?'$'+esc(c.bail):'—'} · Case #${esc(c.caseNo||'—')} · ${esc(c.authority||'')}${c.sentenceDate?' · Sentenced '+esc(c.sentenceDate)+(c.sentenceDays?' ('+esc(c.sentenceDays)+'d)':''):''}${c.releaseDate?' · Release '+esc(c.releaseDate):''}</div></div></li>`).join('')}</ul>`
+    <p class="lead">Pulled live from the booking record, translated into plain English. Each <b>case number</b> is your key to the court portal.</p>
+    ${charges.length? `<ul class="clean">${charges.map(c=>{const pe=chargePlain(c.code), h=chargeHold(c), bn=parseFloat((c.bail||'').replace(/[^0-9.]/g,''));return `<li><div class="check done">§</div><div class="li-body">
+      <div class="t">${esc(c.code)} — ${esc(c.description)} ${c.level?`<span class="pill ${/felony/i.test(c.level)?'bad':'info'}">${esc(c.level)}</span>`:''} ${(h.hold||h.noBail)?`<span class="pill bad">${esc(h.reason)}</span>`:''}</div>
+      ${pe&&pe.plain?`<div class="d" style="color:var(--ink)">🔎 <b>${esc(pe.plain)}</b>${pe.context?` — ${esc(pe.context)}`:''}</div>`:''}
+      <div class="d">Bail: ${(c.bail&&bn>0)?'$'+esc(c.bail):'<b>none set</b>'} · Case #${esc(c.caseNo||'—')}${c.authority?' · '+esc(c.authority):''}${pe&&pe.codeName?' · '+esc(pe.codeName):''}${c.sentenceDate?' · Sentenced '+esc(c.sentenceDate)+(c.sentenceDays?' ('+esc(c.sentenceDays)+'d)':''):''}${c.releaseDate?' · Release '+esc(c.releaseDate):''}</div></div></li>`;}).join('')}</ul>`
     : '<div class="alert info"><span class="ai">ℹ️</span><span>No charges listed on the booking record.</span></div>'}
     <div style="margin-top:12px"><a class="btn sm" href="https://publicportal.fresno.courts.ca.gov/" target="_blank" rel="noopener">Open the court portal ↗</a></div>
+    <div style="margin-top:10px;font-size:11.5px;color:var(--muted)">Plain-English summaries are general explanations, not legal advice. Confirm specifics with an attorney or the Public Defender.</div>
   </div>
   <div class="card" style="margin-top:16px">
     <h3>Court date</h3>
@@ -420,7 +501,10 @@ function vVisit(){return `
     <p class="lead" style="margin:0">Lockdowns and court transport can cancel a visit with no notice. Before you drive in, re-check ${esc(PERSON.name)}'s status under "Change person."</p></div>`;}
 function vBail(){
   const total=PERSON.totalBail||0;
+  const charges=PERSON.charges||[];
+  const holdCharge=charges.find(c=>{const h=chargeHold(c);return h.hold||h.noBail;});
   return `
+  ${holdCharge?`<div class="alert warn" style="margin-bottom:16px"><span class="ai">⚠️</span><span><b>Before you pay a bondsman:</b> the charge <b>${esc(holdCharge.code)}</b> has <b>${chargeHold(holdCharge).hold?'a hold':'no bail set'}</b>. That means even if you post bail on everything else, they likely <b>won't be released</b>. Verify with the jail (559) 475-9491 first.</span></div>`:''}
   <div class="card"><h3>Bail for ${esc(PERSON.name)}</h3>
     <div class="status" style="margin-top:6px">
       <div class="stat"><div class="k">Total bail</div><div class="v">${total?money(total):'—'}</div></div>
