@@ -24,6 +24,39 @@ const PORT = process.env.PORT || 3000;
 const BASE = 'https://publicinfo.fresnosheriff.org/InmateInfoV2';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
+/* ============================================================
+   DATABASE (Supabase) — permanent storage via REST, no driver/deps.
+   Set SUPABASE_URL and SUPABASE_KEY (service role key) in Render to
+   turn it on. Until then, the app falls back to local files so it
+   keeps working. Data lives in a single table:
+     kv ( k text primary key, v jsonb, updated_at timestamptz )
+   ============================================================ */
+const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+const SB_KEY = process.env.SUPABASE_KEY || '';
+const DB_ON  = !!(SB_URL && SB_KEY);
+async function dbGet(key){
+  if(!DB_ON) return null;
+  try{
+    const r = await fetch(`${SB_URL}/rest/v1/kv?k=eq.${encodeURIComponent(key)}&select=v`,
+      { headers:{ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY } });
+    if(!r.ok) return null;
+    const rows = await r.json();
+    return rows && rows[0] ? rows[0].v : null;
+  }catch(e){ console.error('dbGet '+key+' failed', e.message); return null; }
+}
+async function dbSet(key, value){
+  if(!DB_ON) return false;
+  try{
+    const r = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=k`, {
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY, 'Content-Type':'application/json',
+                Prefer:'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([{ k:key, v:value, updated_at:new Date().toISOString() }])
+    });
+    return r.ok;
+  }catch(e){ console.error('dbSet '+key+' failed', e.message); return false; }
+}
+
 /* ---------- tiny HTML helpers (no dependencies) ---------- */
 function stripTags(s){ return (s||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&#39;/g,"'").replace(/&quot;/gi,'"').trim(); }
 
@@ -201,11 +234,14 @@ const POLL_MINUTES = Number(process.env.POLL_MINUTES || 30);
 let WATCHES = {};   // { booking: { snapshot, label, since } }
 let ALERTS = [];    // [ { booking, name, type, message, at } ]
 
-function loadStore(){
+async function loadStore(){
+  if(DB_ON){ const d=await dbGet('watches'); if(d){ WATCHES=d.watches||{}; ALERTS=d.alerts||[]; return; } }
   try{ const d=JSON.parse(fs.readFileSync(STORE,'utf8')); WATCHES=d.watches||{}; ALERTS=d.alerts||[]; }catch(e){ WATCHES={}; ALERTS=[]; }
 }
 function saveStore(){
-  try{ fs.writeFileSync(STORE, JSON.stringify({watches:WATCHES, alerts:ALERTS.slice(-500)})); }catch(e){ console.error('store write failed', e.message); }
+  const data={watches:WATCHES, alerts:ALERTS.slice(-500)};
+  if(DB_ON){ dbSet('watches', data); return; }
+  try{ fs.writeFileSync(STORE, JSON.stringify(data)); }catch(e){ console.error('store write failed', e.message); }
 }
 function snapOf(rec){
   return {
@@ -252,8 +288,16 @@ async function pollOnce(){
 const STATS_FILE = path.join(__dirname, 'stats.json');
 const STATS_KEY = process.env.STATS_KEY || 'staynear2026';
 let STATS = { events:{}, daily:{}, since:new Date().toISOString() };
-function loadStats(){ try{ STATS = JSON.parse(fs.readFileSync(STATS_FILE,'utf8')); }catch(e){} }
-function saveStats(){ try{ fs.writeFileSync(STATS_FILE, JSON.stringify(STATS)); }catch(e){} }
+let _statsDirty = false;
+async function loadStats(){
+  if(DB_ON){ const d=await dbGet('stats'); if(d){ STATS=d; return; } }
+  try{ STATS = JSON.parse(fs.readFileSync(STATS_FILE,'utf8')); }catch(e){}
+}
+function saveStats(){
+  if(DB_ON){ _statsDirty=true; return; }                 // batched flush below (avoids hammering the DB)
+  try{ fs.writeFileSync(STATS_FILE, JSON.stringify(STATS)); }catch(e){}
+}
+function flushStats(){ if(DB_ON && _statsDirty){ _statsDirty=false; dbSet('stats', STATS); } }
 function bump(e){
   if(typeof e!=='string' || !/^[a-z0-9_]{1,40}$/.test(e)) return;          // allowlist-shaped names only
   STATS.events[e]=(STATS.events[e]||0)+1;
@@ -273,6 +317,7 @@ function statsHtml(){
 <body><div class="wrap">
 <h1>📊 StayNear — usage stats</h1>
 <p class="muted">Aggregate, privacy-safe counts. No personal data, no IP addresses, and no record of who was searched. Tracking since ${new Date(STATS.since).toLocaleString()}.</p>
+<p class="muted" style="font-weight:700;color:${DB_ON?'#1a8f5a':'#b8740a'}">Storage: ${DB_ON?'✅ Permanent database (Supabase) — survives redeploys':'⚠️ Temporary files — resets on redeploy. Connect the database to make permanent.'}</p>
 <div class="cards">
   <div class="c"><div class="k">Visits</div><div class="v">${n('app_open')}</div></div>
   <div class="c"><div class="k">Searches</div><div class="v">${n('search')}</div></div>
@@ -283,7 +328,7 @@ function statsHtml(){
 <h2>Most-viewed tabs</h2><table><tr><th>Tab</th><th>Views</th></tr>${rows('tab_')}</table>
 <h2>Payment links clicked</h2><table><tr><th>Vendor</th><th>Clicks</th></tr>${rows('pay_')}</table>
 <h2>Last 14 days</h2><table><tr><th>Date</th><th>Searches</th><th>Visits</th></tr>${dayRows}</table>
-<p class="muted" style="margin-top:24px">Note: on the free hosting tier these counts reset when the app redeploys or restarts. Add a database for permanent history.</p>
+${DB_ON?'':'<p class="muted" style="margin-top:24px">Note: on the free hosting tier these counts reset when the app redeploys or restarts. Connect the database for permanent history.</p>'}
 </div></body></html>`;
 }
 
@@ -362,15 +407,15 @@ function json(res, code, obj){
 }
 
 if(require.main === module){
-  loadStore();
-  loadStats();
+  Promise.all([loadStore(), loadStats()]).catch(e=>console.error('load error', e.message));
   server.listen(PORT, ()=>{
-    console.log('\n  Lifeline is running.');
+    console.log('\n  StayNear is running.');
     console.log('  Open this in your browser:  http://localhost:'+PORT);
+    console.log('  Storage: '+(DB_ON?'Supabase database (permanent)':'local files (temporary)'));
     console.log('  Custody-alert checks every '+POLL_MINUTES+' min'+(process.env.WEBHOOK_URL?' (webhook on)':'')+'.\n');
   });
-  // background poller
   setInterval(()=>{ pollOnce().catch(e=>console.error('poll error', e.message)); }, POLL_MINUTES*60*1000);
+  setInterval(flushStats, 5000);          // batch-write analytics to the DB every 5s when changed
 } else {
   module.exports = { stripTags, hidden, spanText, parseTableByHeader, parseCharges, snapOf, diff };
 }
