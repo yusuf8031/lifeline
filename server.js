@@ -60,6 +60,29 @@ function parseTableByHeader(html, headerKeyword){
   return out;
 }
 
+// charges live in an ASP.NET GridView with id="grvwCharges", nested inside
+// layout tables — so we target that table by id and map columns by header name.
+function parseCharges(html){
+  const m = html.match(/<table[^>]*id="grvwCharges"[\s\S]*?<\/table>/i);
+  if(!m) return [];
+  const rows = m[0].match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  if(rows.length < 2) return [];
+  const headers = (rows[0].match(/<t[hd][\s\S]*?<\/t[hd]>/gi)||[]).map(c=>stripTags(c).toLowerCase());
+  const col = kw => headers.findIndex(h => h.includes(kw));
+  const ci = { code:col('charge'), desc:col('description'), bail:col('bail amount'),
+               auth:col('authority'), caseNo:col('case'), level:col('level'), court:col('court') };
+  const out = [];
+  for(let i=1;i<rows.length;i++){
+    const cells = (rows[i].match(/<t[hd][\s\S]*?<\/t[hd]>/gi)||[]).map(stripTags);
+    if(!cells.length || cells.every(c=>!c)) continue;
+    const at = k => ci[k] >= 0 ? (cells[ci[k]]||'') : '';
+    const o = { code:at('code'), description:at('desc'), bail:at('bail'),
+                authority:at('auth'), caseNo:at('caseNo'), level:at('level'), court:at('court') };
+    if(o.code || o.description) out.push(o);
+  }
+  return out;
+}
+
 /* ---------- fetch with cookie jar + browser UA ---------- */
 async function go(url, opts={}, cookie=''){
   const headers = Object.assign({
@@ -146,17 +169,8 @@ async function getInmate(booking){
     housing:    spanText(h,'fvwArrest_lblLocation'),
     charges: []
   };
-  // charges table (has a "Bail Amount" column)
-  const rawCharges = parseTableByHeader(h, 'Bail Amount');
-  rec.charges = rawCharges.map(c => ({
-    code:        c['Charges'] || c['Charge'] || '',
-    description: c['Description'] || '',
-    bail:        c['Bail Amount'] || c['Bail'] || '',
-    authority:   c['Authority'] || '',
-    caseNo:      c['Case No.'] || c['Case No'] || c['Case Number'] || '',
-    level:       c['Level'] || '',
-    court:       c['Court'] || c['Court Date'] || ''
-  })).filter(c => c.code || c.description);
+  // charges from the grvwCharges GridView
+  rec.charges = parseCharges(h);
 
   // total bail (sum of numeric bail amounts)
   rec.totalBail = rec.charges.reduce((s,c)=> s + (parseFloat((c.bail||'').replace(/[^0-9.]/g,''))||0), 0);
@@ -292,5 +306,5 @@ if(require.main === module){
   // background poller
   setInterval(()=>{ pollOnce().catch(e=>console.error('poll error', e.message)); }, POLL_MINUTES*60*1000);
 } else {
-  module.exports = { stripTags, hidden, spanText, parseTableByHeader, snapOf, diff };
+  module.exports = { stripTags, hidden, spanText, parseTableByHeader, parseCharges, snapOf, diff };
 }
