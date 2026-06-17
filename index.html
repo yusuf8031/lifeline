@@ -150,6 +150,13 @@ const DB={
 };
 let CURRENT=null, PERSON=null;
 
+/* ===== LOGIN SWITCH =================================================
+   Set REQUIRE_LOGIN = true to bring the sign-up / log-in screen back.
+   When false, the app skips login and opens straight into the
+   dashboard as a local "Guest" (notes still save in this browser).
+   ================================================================== */
+const REQUIRE_LOGIN = false;
+
 /* ---------- AUTH ---------- */
 const errBox=$('#errBox');
 const showErr=m=>{errBox.textContent=m;errBox.classList.remove('hidden')};
@@ -178,7 +185,16 @@ function enterApp(email){
   if(PERSON){ $('#tabs').classList.remove('hidden'); $('#whoBox').innerHTML='Supporting <b>'+esc(PERSON.name)+'</b>'; render('home'); }
   else { $('#tabs').classList.add('hidden'); $('#whoBox').textContent=''; renderFind(); }
 }
-if(DB.session() && DB.users()[DB.session()]) enterApp(DB.session());
+if(!REQUIRE_LOGIN){
+  // Guest mode: skip login, go straight into the dashboard.
+  const g='guest@lifeline.local'; const users=DB.users();
+  if(!users[g]){ users[g]={name:'Guest',pass:'',rel:'Friend',checklist:{},person:null}; DB.save(users); }
+  DB.setSession(g);
+  const lo=document.getElementById('logoutBtn'); if(lo) lo.style.display='none';
+  enterApp(g);
+} else if(DB.session() && DB.users()[DB.session()]){
+  enterApp(DB.session());
+}
 
 /* ---------- helpers ---------- */
 const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -310,7 +326,7 @@ function vMoney(){
     <div class="vendor"><div class="vic" style="background:#1a8f5a">🛒</div><div>
       <h4>Commissary &amp; "the books" → TouchPay</h4><p>Food, snacks, hygiene, stamps, OTC meds. Up to <b>$175/week</b>.</p>
       <div class="meta"><b>Facility #:</b> 293721 · <b>Booking #:</b> ${esc(PERSON.bookingNo)} · cash/Visa/Mastercard · convenience fee applies</div>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="https://www.touchpaydirect.com" target="_blank" rel="noopener">Deposit on TouchPay</a><span class="btn sm line">☎ 1-866-232-1899</span></div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="https://www.tpgovtpay.com/" target="_blank" rel="noopener">Deposit on TouchPay</a><span class="btn sm line">☎ 1-866-232-1899</span></div>
     </div></div>
     <div class="vendor"><div class="vic" style="background:#1f5fd0">📞</div><div>
       <h4>Phone calls → ConnectNetwork (GTL / ViaPath)</h4><p>A <b>prepaid AdvancePay</b> account so they can call your number.</p>
