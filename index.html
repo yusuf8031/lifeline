@@ -219,8 +219,9 @@ function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const money=n=>'$'+(Number(n)||0).toLocaleString();
 function saveUser(mut){const users=DB.users();mut(users[CURRENT]);DB.save(users);}
 function flashCopied(btn){ if(!btn)return; const o=btn.dataset.label||btn.innerHTML; btn.dataset.label=o; btn.classList.add('copied'); btn.innerHTML='✓ Copied'; clearTimeout(btn._t); btn._t=setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML=o;},1100); }
-function copyText(val,btn){ try{ navigator.clipboard.writeText(val).then(()=>flashCopied(btn),()=>fallbackCopy(val,btn)); }catch(e){ fallbackCopy(val,btn); } }
-function fallbackCopy(val,btn){ const t=document.createElement('textarea'); t.value=val; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(t); flashCopied(btn); }
+function copyText(val,btn){ flashCopied(btn); /* optimistic feedback */
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(val).catch(()=>fallbackCopy(val)); } else { fallbackCopy(val); } }catch(e){ fallbackCopy(val); } }
+function fallbackCopy(val){ const t=document.createElement('textarea'); t.value=val; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(t); }
 
 /* ---------- plain-English charge translation ---------- */
 const CODE_BOOK={PC:'California Penal Code',HS:'Health & Safety Code',VC:'Vehicle Code',WI:'Welfare & Institutions Code',BP:'Business & Professions Code',FG:'Fish & Game Code',CV:'Civil Code'};
