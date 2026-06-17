@@ -1,0 +1,11 @@
+name: keep-alive
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping app to keep it awake and run custody checks
+        run: curl -s --max-time 60 https://lifeline-7vup.onrender.com/api/checknow || true
