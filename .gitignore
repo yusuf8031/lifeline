@@ -1,0 +1,4 @@
+node_modules/
+watches.json
+*.log
+.DS_Store
